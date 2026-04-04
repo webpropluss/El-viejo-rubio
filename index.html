@@ -588,16 +588,28 @@ function renderCk(){
 // GESTION
 function initGestion(){
   var hoy=new Date(),pr=new Date(hoy.getFullYear(),hoy.getMonth(),1);
-  document.getElementById("f-desde").value=pr.toISOString().split("T")[0];
-  document.getElementById("f-hasta").value=hoy.toISOString().split("T")[0];
+  document.getElementById("f-desde").value=fechaLocal(pr);
+  document.getElementById("f-hasta").value=fechaLocal(hoy);
   renderGestion();
   db.collection("historial").orderBy("ts","desc").onSnapshot(function(snap){
     histCache=[];snap.forEach(function(doc){histCache.push(doc.data());});renderGestion();
   });
 }
 function getFiltHist(){
-  var d=document.getElementById("f-desde").value,h=document.getElementById("f-hasta").value;
-  return histCache.filter(function(x){return(!d||x.fecha>=d)&&(!h||x.fecha<=h+"T23:59:59");});
+  var d=document.getElementById("f-desde").value;
+  var h=document.getElementById("f-hasta").value;
+  return histCache.filter(function(x){
+    // Convertir fecha del registro a fecha local para comparar correctamente
+    var fechaLocal=fechaLocalFromISO(x.fecha);
+    return(!d||fechaLocal>=d)&&(!h||fechaLocal<=h);
+  });
+}
+function fechaLocalFromISO(iso){
+  var dt=new Date(iso);
+  var y=dt.getFullYear();
+  var m=String(dt.getMonth()+1).padStart(2,"0");
+  var dia=String(dt.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+dia;
 }
 function renderGestion(){
   var hist=getFiltHist(),tv=hist.length,ti=0;
@@ -628,11 +640,24 @@ function renderGestion(){
     tbody.appendChild(tr);
   });
 }
+function fechaLocal(d){
+  // Fecha local correcta sin problema de zona horaria
+  var y=d.getFullYear();
+  var m=String(d.getMonth()+1).padStart(2,"0");
+  var dia=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+dia;
+}
 function filtro(t,btn){
-  var hoy=new Date(),desde="",hasta=hoy.toISOString().split("T")[0];
-  if(t==="hoy") desde=hasta;
-  else if(t==="sem"){var d=new Date(hoy);d.setDate(d.getDate()-6);desde=d.toISOString().split("T")[0];}
-  else desde=new Date(hoy.getFullYear(),hoy.getMonth(),1).toISOString().split("T")[0];
+  var hoy=new Date();
+  var desde="", hasta=fechaLocal(hoy);
+  if(t==="hoy"){
+    desde=fechaLocal(hoy);
+  } else if(t==="sem"){
+    var d=new Date(hoy); d.setDate(d.getDate()-6);
+    desde=fechaLocal(d);
+  } else {
+    desde=fechaLocal(new Date(hoy.getFullYear(),hoy.getMonth(),1));
+  }
   document.getElementById("f-desde").value=desde;
   document.getElementById("f-hasta").value=hasta;
   document.querySelectorAll(".fb").forEach(function(b){b.classList.remove("on");});
