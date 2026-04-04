@@ -260,6 +260,7 @@ tr:last-child td{border-bottom:none;}
     <div id="hempty" style="color:#555;text-align:center;padding:30px;font-size:.85rem;">Sin registros</div>
   </div>
   <button class="btn-admin" onclick="ir('pg-admin',initAdmin)">☰ Administrar Menú</button>
+  <button onclick="limpiarHistorial()" style="width:100%;padding:14px;background:transparent;border:2px solid #e74c3c;border-radius:6px;color:#e74c3c;font-size:1rem;font-weight:bold;cursor:pointer;margin-top:10px;">🗑 Limpiar Historial</button>
 </div>
 
 <!-- ADMIN -->
@@ -462,9 +463,19 @@ function cobrar(){
   if(!pedido.length) return;
   var total=0; pedido.forEach(function(i){total+=i.p*i.cant;});
   var cli=document.getElementById("cli-inp"); var c=cli?cli.value:"Sin nombre";
+  // Reiniciar contador si es un nuevo dia (desde las 7am)
+  var ahora = new Date();
+  var hoy7am = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 7, 0, 0).getTime();
+  // Si son antes de las 7am, el "dia actual" empezo ayer a las 7am
+  if(ahora.getHours() < 7) hoy7am -= 24*60*60*1000;
+
   db.collection("configuracion").doc("contador").get().then(function(doc){
-    var num=doc.exists?(doc.data().n||0)+1:1;
-    db.collection("configuracion").doc("contador").set({n:num});
+    var ultimo7am = doc.exists ? (doc.data().ultimo7am || 0) : 0;
+    var n = doc.exists ? (doc.data().n || 0) : 0;
+    // Si el ultimo reinicio fue antes del 7am de hoy, reiniciar
+    var num = (ultimo7am < hoy7am) ? 1 : n + 1;
+    var nuevoUltimo7am = (ultimo7am < hoy7am) ? hoy7am : ultimo7am;
+    db.collection("configuracion").doc("contador").set({n:num, ultimo7am:nuevoUltimo7am});
     var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,ts:Date.now()};
     db.collection("historial").add(reg);
     db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,estado:"pendiente",timestamp:Date.now()});
@@ -713,6 +724,33 @@ function guardarNuevo(){
     menuCache.push(np);cerrarModal();notif(n+" agregado");renderAdmin();
   });
 }
+function limpiarHistorial(){
+  if(!confirm("\u00bfEst\u00e1s seguro de que deseas eliminar TODO el historial de pedidos? Esta acci\u00f3n no se puede deshacer.")) return;
+  if(!confirm("\u00dalima confirmaci\u00f3n: Se borrar\u00e1n todos los registros de ventas. \u00bfContinuar?")) return;
+  // Borrar historial
+  db.collection("historial").get().then(function(snap){
+    var batch = db.batch();
+    snap.forEach(function(doc){ batch.delete(doc.ref); });
+    return batch.commit();
+  }).then(function(){
+    // Borrar cola cocina
+    return db.collection("cola_cocina").get();
+  }).then(function(snap){
+    var batch = db.batch();
+    snap.forEach(function(doc){ batch.delete(doc.ref); });
+    return batch.commit();
+  }).then(function(){
+    // Reiniciar contador
+    return db.collection("configuracion").doc("contador").set({n:0, ultimo7am:0});
+  }).then(function(){
+    histCache = [];
+    renderGestion();
+    notif("Historial eliminado correctamente");
+  }).catch(function(e){
+    notif("Error al eliminar: " + e.message);
+  });
+}
+
 function notif(msg){
   var el=document.createElement("div");el.className="notif";el.textContent=msg;
   document.body.appendChild(el);setTimeout(function(){if(el.parentNode) el.parentNode.removeChild(el);},3000);
