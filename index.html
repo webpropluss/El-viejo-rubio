@@ -169,6 +169,10 @@ tr:last-child td{border-bottom:none;}
     <div class="ped-col">
       <div class="col-h">Pedido <span class="badge" id="badge">0</span></div>
       <input type="text" id="cli-inp" placeholder="Nombre del cliente...">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button id="btn-mesa" onclick="setTipo('mesa')" style="flex:1;padding:10px;background:#C8922A;color:#111;border:none;border-radius:6px;font-weight:bold;font-size:.95rem;cursor:pointer;">🍽 Mesa</button>
+        <button id="btn-llevar" onclick="setTipo('llevar')" style="flex:1;padding:10px;background:#222;color:#aaa;border:2px solid #444;border-radius:6px;font-weight:bold;font-size:.95rem;cursor:pointer;">🥡 Llevar</button>
+      </div>
       <div class="qr-wrap">
         <div class="qr-lbl">QR de pago</div>
         <input type="file" id="qr-file" accept="image/*" style="display:none;">
@@ -332,6 +336,21 @@ var MENU=[
 ];
 var menuCache=[], histCache=[], colaCache=[];
 var pedido=[], catAct="Todos", bus="", carIdx=0, carTimer=null;
+var tipoPedido="mesa";
+
+function setTipo(tipo){
+  tipoPedido=tipo;
+  var bm=document.getElementById("btn-mesa");
+  var bl=document.getElementById("btn-llevar");
+  if(tipo==="mesa"){
+    if(bm){bm.style.background="#C8922A";bm.style.color="#111";bm.style.border="none";}
+    if(bl){bl.style.background="#222";bl.style.color="#aaa";bl.style.border="2px solid #444";}
+  } else {
+    if(bl){bl.style.background="#C8922A";bl.style.color="#111";bl.style.border="none";}
+    if(bm){bm.style.background="#222";bm.style.color="#aaa";bm.style.border="2px solid #444";}
+  }
+  syncPed();
+}
 function getMenu(){return menuCache.length?menuCache:MENU;}
 
 // NAVEGACION
@@ -456,9 +475,9 @@ function renderPed(){
 }
 function syncPed(){
   var cli=document.getElementById("cli-inp"); var c=cli?cli.value:"";
-  db.collection("pedido_actual").doc("actual").set({items:pedido,cliente:c,ts:Date.now()});
+  db.collection("pedido_actual").doc("actual").set({items:pedido,cliente:c,tipo:tipoPedido,ts:Date.now()});
 }
-function limpiar(){pedido=[];var ci=document.getElementById("cli-inp");if(ci)ci.value="";renderPed();syncPed();}
+function limpiar(){pedido=[];tipoPedido="mesa";var ci=document.getElementById("cli-inp");if(ci)ci.value="";setTipo("mesa");renderPed();syncPed();}
 function cobrar(){
   if(!pedido.length) return;
   var total=0; pedido.forEach(function(i){total+=i.p*i.cant;});
@@ -476,9 +495,9 @@ function cobrar(){
     var num = (ultimo7am < hoy7am) ? 1 : n + 1;
     var nuevoUltimo7am = (ultimo7am < hoy7am) ? hoy7am : ultimo7am;
     db.collection("configuracion").doc("contador").set({n:num, ultimo7am:nuevoUltimo7am});
-    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,ts:Date.now()};
+    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now()};
     db.collection("historial").add(reg);
-    db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,estado:"pendiente",timestamp:Date.now()});
+    db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
     notif("Pedido #"+num+" enviado - Bs."+total);
     limpiar();
   });
@@ -558,7 +577,10 @@ function renderCk(){
     var hora=new Date(p.fecha).toLocaleTimeString("es-BO",{hour:"2-digit",minute:"2-digit"});
     var card=document.createElement("div");card.className="ck-card"+(urg?" urg":"");
     var head=document.createElement("div");head.className="ck-head";
-    var num=document.createElement("div");num.className="ck-num";num.textContent="Pedido #"+p.num;
+    var num=document.createElement("div");num.className="ck-num";
+    var tipoTag=p.tipo==="llevar"?"&#x1F961; Llevar":"&#x1F37D; Mesa";
+    var tipoColor=p.tipo==="llevar"?"#C8922A":"#2D6A4F";
+    num.innerHTML="Pedido #"+p.num+"&nbsp;<span style='font-size:.7rem;padding:3px 10px;border-radius:20px;background:"+tipoColor+";color:white;font-family:Helvetica,sans-serif;vertical-align:middle;'>"+tipoTag+"</span>";
     var info=document.createElement("div");
     var cli=document.createElement("div");cli.className="ck-cli";cli.textContent=p.cliente||"Sin nombre";
     var hr=document.createElement("div");hr.style.cssText="font-size:.75rem;color:#555;";hr.textContent=hora;
