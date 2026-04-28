@@ -319,23 +319,49 @@ var db = firebase.firestore();
 
 <script>
 var MENU=[
-  {id:1,e:"\u2615",n:"Espresso",p:12,c:"Cafes"},
-  {id:2,e:"\u2615",n:"Cortado",p:20,c:"Cafes"},
-  {id:3,e:"\u2615",n:"Cappuccino",p:22,c:"Cafes"},
-  {id:4,e:"\u2615",n:"Latte",p:22,c:"Cafes"},
-  {id:5,e:"\u2615",n:"Flat White",p:24,c:"Cafes"},
-  {id:6,e:"\u2615",n:"Americano",p:20,c:"Cafes"},
-  {id:7,e:"\u2615",n:"Affogato",p:20,c:"Cafes"},
-  {id:8,e:"\u2615",n:"Cafe del Dia",p:12,c:"Cafes"},
-  {id:9,e:"\u2615",n:"Te",p:12,c:"Bebidas"},
-  {id:10,e:"\u2615",n:"Jugo Natural",p:18,c:"Bebidas"},
-  {id:11,e:"\u2615",n:"Limonada",p:16,c:"Bebidas"},
-  {id:12,e:"\u2615",n:"Agua",p:8,c:"Bebidas"},
-  {id:13,e:"\u2615",n:"Croissant",p:18,c:"Alimentos"},
-  {id:14,e:"\u2615",n:"Torta del Dia",p:25,c:"Alimentos"},
-  {id:15,e:"\u2615",n:"Cheesecake",p:28,c:"Alimentos"},
-  {id:16,e:"\u2615",n:"Sandwich",p:30,c:"Alimentos"},
-  {id:17,e:"\u2615",n:"Bowl del Dia",p:35,c:"Alimentos"}
+  {id:1, e:"\u2615",n:"Espresso",         p:12, c:"Cafes"},
+  {id:2, e:"\u2615",n:"Cafe del Dia",      p:12, c:"Cafes"},
+  {id:3, e:"\u2615",n:"Cappuccino",        p:22, c:"Cafes"},
+  {id:4, e:"\u2615",n:"Americano",         p:20, c:"Cafes"},
+  {id:5, e:"\u2615",n:"Ojo Negro",         p:24, c:"Cafes"},
+  {id:6, e:"\u2615",n:"Latte Clasico",     p:22, c:"Cafes"},
+  {id:7, e:"\u2615",n:"Latte Frutilla",    p:26, c:"Cafes"},
+  {id:8, e:"\u2615",n:"Iced Latte",        p:22, c:"Cafes"},
+  {id:9, e:"\u2615",n:"Cortado",           p:20, c:"Cafes"},
+  {id:10,e:"\u2615",n:"Machiatto",         p:22, c:"Cafes"},
+  {id:11,e:"\u2615",n:"Flat White",        p:24, c:"Cafes"},
+  {id:12,e:"\u2615",n:"Affogato",          p:20, c:"Cafes"},
+  {id:13,e:"\u2615",n:"Chocolate Caliente",p:14, c:"Cafes"},
+  {id:14,e:"\u2615",n:"Flor de Cafe",      p:12, c:"Tes"},
+  {id:15,e:"\u2615",n:"Jamaica",           p:12, c:"Tes"},
+  {id:16,e:"\u2615",n:"Menta",             p:12, c:"Tes"},
+  {id:17,e:"\u2615",n:"Zumo de Naranja",   p:10, c:"Jugos"},
+  {id:18,e:"\u2615",n:"Limonada",          p:7,  c:"Jugos"},
+  {id:19,e:"\u2615",n:"Frutilla y Limon",  p:10, c:"Jugos"},
+  {id:20,e:"\u2615",n:"Hierba Buena",      p:10, c:"Jugos"},
+  {id:21,e:"\u2615",n:"Agua",              p:7,  c:"Jugos"},
+  {id:22,e:"\u2615",n:"Cerveza",           p:25, c:"Jugos"},
+  {id:23,e:"\u2615",n:"Galletas",          p:5,  c:"Algo Dulce"},
+  {id:24,e:"\u2615",n:"Rollo de Canela",   p:8,  c:"Algo Dulce"},
+  {id:25,e:"\u2615",n:"Pasion Arandano",   p:9,  c:"Algo Dulce"},
+  {id:26,e:"\u2615",n:"Muffin de Banana",  p:8,  c:"Algo Dulce"},
+  {id:27,e:"\u2615",n:"Cupcake Zanahoria", p:10, c:"Algo Dulce"},
+  {id:28,e:"\u2615",n:"Torta de Chocolate",p:7,  c:"Algo Dulce"},
+  {id:29,e:"\u2615",n:"Torta de Manzana",  p:10, c:"Algo Dulce"},
+  {id:30,e:"\u2615",n:"Cheesecake",        p:25, c:"Algo Dulce"},
+  {id:31,e:"\u2615",n:"Helado Artesanal",  p:6,  c:"Algo Dulce"},
+  {id:32,e:"\u2615",n:"Panini Jamon Queso",p:25, c:"Para el Hambre"},
+  {id:33,e:"\u2615",n:"Panini Pizza",      p:30, c:"Para el Hambre"},
+  {id:34,e:"\u2615",n:"Chicken Melt",      p:30, c:"Para el Hambre"},
+  {id:35,e:"\u2615",n:"Quesadilla Simple", p:25, c:"Para el Hambre"},
+  {id:36,e:"\u2615",n:"Quesadilla Double", p:40, c:"Para el Hambre"},
+  {id:37,e:"\u2615",n:"Sandwich",          p:15, c:"Para el Hambre"},
+  {id:38,e:"\u2615",n:"Waffles",           p:20, c:"Desayuno"},
+  {id:39,e:"\u2615",n:"Desayuno Americano",p:25, c:"Desayuno"},
+  {id:40,e:"\u2615",n:"Desayuno Fitness",  p:25, c:"Desayuno"},
+  {id:41,e:"\u2615",n:"Omelete",           p:20, c:"Desayuno"},
+  {id:42,e:"\u2615",n:"Quiche de Tocino",  p:25, c:"Desayuno"},
+  {id:43,e:"\u2615",n:"Yogurt Parfait",    p:15, c:"Desayuno"}
 ];
 var menuCache=[], histCache=[], colaCache=[];
 var pedido=[], catAct="Todos", bus="", carIdx=0, carTimer=null;
@@ -831,21 +857,21 @@ function imprimirTicket(){
     + "<style>"
     + "* { margin:0; padding:0; box-sizing:border-box; }"
     + "@page { size: 80mm auto; margin: 0; }"
-    + "body { font-family: 'Courier New', monospace; width: 76mm; padding: 3mm 4mm; font-size:16px; color:#000; }"
-    + "h1 { font-size:24px; text-align:center; margin-bottom:3px; font-weight:bold; }"
-    + "h2 { font-size:14px; text-align:center; letter-spacing:2px; color:#555; margin-bottom:8px; }"
-    + ".linea { border-top: 1px dashed #000; margin: 8px 0; }"
-    + ".info { font-size:14px; margin-bottom:3px; }"
+    + "body { font-family: 'Courier New', monospace; width: 76mm; padding: 2mm 3mm; font-size:12px; color:#000; }"
+    + "h1 { font-size:16px; text-align:center; margin-bottom:2px; font-weight:bold; }"
+    + "h2 { font-size:10px; text-align:center; letter-spacing:2px; color:#555; margin-bottom:5px; }"
+    + ".linea { border-top: 1px dashed #000; margin: 5px 0; }"
+    + ".info { font-size:11px; margin-bottom:2px; }"
     + "table { width:100%; border-collapse:collapse; }"
-    + "th { font-size:13px; text-align:left; border-bottom:1px solid #000; padding:4px 6px; font-weight:bold; }"
+    + "th { font-size:10px; text-align:left; border-bottom:1px solid #000; padding:3px 4px; font-weight:bold; }"
     + "th:last-child, td:last-child { text-align:right; }"
-    + "td { font-size:14px; padding:4px 6px; }"
-    + ".total-row { font-size:20px; font-weight:bold; border-top:2px solid #000; padding-top:6px; margin-top:6px; display:flex; justify-content:space-between; }"
-    + ".tipo { font-size:17px; font-weight:bold; text-align:center; border:2px solid #000; padding:5px; margin:8px 0; }"
-    + ".pie { font-size:13px; text-align:center; color:#555; margin-top:10px; }"
+    + "td { font-size:11px; padding:3px 4px; }"
+    + ".total-row { font-size:15px; font-weight:bold; border-top:2px solid #000; padding-top:4px; margin-top:4px; display:flex; justify-content:space-between; }"
+    + ".tipo { font-size:12px; font-weight:bold; text-align:center; border:2px solid #000; padding:3px; margin:5px 0; }"
+    + ".pie { font-size:10px; text-align:center; color:#555; margin-top:6px; }"
     + "@media print { body { width:76mm; } }"
     + "</style></head><body>"
-    + "<div style='text-align:center;margin-bottom:4px;'><img src='data:image/jpeg;base64," + logoData + "' style='width:90px;height:90px;border-radius:50%;border:2px solid #000;object-fit:cover;'></div>"
+    + "<div style='text-align:center;margin-bottom:4px;'><img src='data:image/jpeg;base64," + logoData + "' style='width:60px;height:60px;border-radius:50%;border:1px solid #000;object-fit:cover;'></div>"
     + "<h1>El Viejo Rubio</h1>"
     + "<h2>SPECIALTY COFFEE</h2>"
     + "<div class='linea'></div>"
