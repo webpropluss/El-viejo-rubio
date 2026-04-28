@@ -173,17 +173,7 @@ tr:last-child td{border-bottom:none;}
         <button id="btn-mesa" onclick="setTipo('mesa')" style="flex:1;padding:10px;background:#C8922A;color:#111;border:none;border-radius:6px;font-weight:bold;font-size:.95rem;cursor:pointer;">🍽 Mesa</button>
         <button id="btn-llevar" onclick="setTipo('llevar')" style="flex:1;padding:10px;background:#222;color:#aaa;border:2px solid #444;border-radius:6px;font-weight:bold;font-size:.95rem;cursor:pointer;">🥡 Llevar</button>
       </div>
-      <div class="qr-wrap">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="qr-lbl" style="margin:0;">QR de pago</div>
-          <input type="file" id="qr-file" accept="image/*" style="display:none;">
-          <div class="qr-upl" onclick="document.getElementById('qr-file').click()" style="padding:4px 8px;font-size:.65rem;flex:1;">&#x1F4F7; Subir QR</div>
-        </div>
-        <div class="qr-prev" id="qr-prev" style="margin-top:4px;">
-          <img id="qr-prev-img" src="" alt="QR" style="max-height:80px;width:auto;display:block;margin:0 auto;">
-          <button class="qr-del" onclick="delQR()">x</button>
-        </div>
-      </div>
+
       <div id="ped-list"><div class="ped-empty">Pedido vacío</div></div>
       <div class="total">Bs. <span id="total">0</span></div>
       <button class="btn-g" onclick="cobrar()">&#x2713; Cobrar</button>
@@ -319,49 +309,49 @@ var db = firebase.firestore();
 
 <script>
 var MENU=[
-  {id:1, e:"\u2615",n:"Espresso",         p:12, c:"Cafes"},
-  {id:2, e:"\u2615",n:"Cafe del Dia",      p:12, c:"Cafes"},
-  {id:3, e:"\u2615",n:"Cappuccino",        p:22, c:"Cafes"},
-  {id:4, e:"\u2615",n:"Americano",         p:20, c:"Cafes"},
-  {id:5, e:"\u2615",n:"Ojo Negro",         p:24, c:"Cafes"},
-  {id:6, e:"\u2615",n:"Latte Clasico",     p:22, c:"Cafes"},
-  {id:7, e:"\u2615",n:"Latte Frutilla",    p:26, c:"Cafes"},
-  {id:8, e:"\u2615",n:"Iced Latte",        p:22, c:"Cafes"},
-  {id:9, e:"\u2615",n:"Cortado",           p:20, c:"Cafes"},
-  {id:10,e:"\u2615",n:"Machiatto",         p:22, c:"Cafes"},
-  {id:11,e:"\u2615",n:"Flat White",        p:24, c:"Cafes"},
-  {id:12,e:"\u2615",n:"Affogato",          p:20, c:"Cafes"},
-  {id:13,e:"\u2615",n:"Chocolate Caliente",p:14, c:"Cafes"},
-  {id:14,e:"\u2615",n:"Flor de Cafe",      p:12, c:"Tes"},
-  {id:15,e:"\u2615",n:"Jamaica",           p:12, c:"Tes"},
-  {id:16,e:"\u2615",n:"Menta",             p:12, c:"Tes"},
-  {id:17,e:"\u2615",n:"Zumo de Naranja",   p:10, c:"Jugos"},
-  {id:18,e:"\u2615",n:"Limonada",          p:7,  c:"Jugos"},
-  {id:19,e:"\u2615",n:"Frutilla y Limon",  p:10, c:"Jugos"},
-  {id:20,e:"\u2615",n:"Hierba Buena",      p:10, c:"Jugos"},
-  {id:21,e:"\u2615",n:"Agua",              p:7,  c:"Jugos"},
-  {id:22,e:"\u2615",n:"Cerveza",           p:25, c:"Jugos"},
-  {id:23,e:"\u2615",n:"Galletas",          p:5,  c:"Algo Dulce"},
-  {id:24,e:"\u2615",n:"Rollo de Canela",   p:8,  c:"Algo Dulce"},
-  {id:25,e:"\u2615",n:"Pasion Arandano",   p:9,  c:"Algo Dulce"},
-  {id:26,e:"\u2615",n:"Muffin de Banana",  p:8,  c:"Algo Dulce"},
-  {id:27,e:"\u2615",n:"Cupcake Zanahoria", p:10, c:"Algo Dulce"},
-  {id:28,e:"\u2615",n:"Torta de Chocolate",p:7,  c:"Algo Dulce"},
-  {id:29,e:"\u2615",n:"Torta de Manzana",  p:10, c:"Algo Dulce"},
-  {id:30,e:"\u2615",n:"Cheesecake",        p:25, c:"Algo Dulce"},
-  {id:31,e:"\u2615",n:"Helado Artesanal",  p:6,  c:"Algo Dulce"},
-  {id:32,e:"\u2615",n:"Panini Jamon Queso",p:25, c:"Para el Hambre"},
-  {id:33,e:"\u2615",n:"Panini Pizza",      p:30, c:"Para el Hambre"},
-  {id:34,e:"\u2615",n:"Chicken Melt",      p:30, c:"Para el Hambre"},
-  {id:35,e:"\u2615",n:"Quesadilla Simple", p:25, c:"Para el Hambre"},
-  {id:36,e:"\u2615",n:"Quesadilla Double", p:40, c:"Para el Hambre"},
-  {id:37,e:"\u2615",n:"Sandwich",          p:15, c:"Para el Hambre"},
-  {id:38,e:"\u2615",n:"Waffles",           p:20, c:"Desayuno"},
-  {id:39,e:"\u2615",n:"Desayuno Americano",p:25, c:"Desayuno"},
-  {id:40,e:"\u2615",n:"Desayuno Fitness",  p:25, c:"Desayuno"},
-  {id:41,e:"\u2615",n:"Omelete",           p:20, c:"Desayuno"},
-  {id:42,e:"\u2615",n:"Quiche de Tocino",  p:25, c:"Desayuno"},
-  {id:43,e:"\u2615",n:"Yogurt Parfait",    p:15, c:"Desayuno"}
+  {id:1, e:"\u2615",n:"Espresso",          p:12, c:"Cafe"},
+  {id:2, e:"\u2615",n:"Cafe del Dia",       p:12, c:"Cafe"},
+  {id:3, e:"\u2615",n:"Cappuccino",         p:22, c:"Cafe"},
+  {id:4, e:"\u2615",n:"Americano",          p:20, c:"Cafe"},
+  {id:5, e:"\u2615",n:"Ojo Negro",          p:24, c:"Cafe"},
+  {id:6, e:"\u2615",n:"Latte Clasico",      p:22, c:"Cafe"},
+  {id:7, e:"\u2615",n:"Latte Frutilla",     p:26, c:"Cafe"},
+  {id:8, e:"\u2615",n:"Iced Latte",         p:22, c:"Cafe"},
+  {id:9, e:"\u2615",n:"Cortado",            p:20, c:"Cafe"},
+  {id:10,e:"\u2615",n:"Machiatto",          p:22, c:"Cafe"},
+  {id:11,e:"\u2615",n:"Flat White",         p:24, c:"Cafe"},
+  {id:12,e:"\u2615",n:"Affogato",           p:20, c:"Cafe"},
+  {id:13,e:"\u2615",n:"Chocolate Caliente", p:14, c:"Cafe"},
+  {id:14,e:"\u2375",n:"Flor de Cafe",       p:12, c:"Te"},
+  {id:15,e:"\u2375",n:"Jamaica",            p:12, c:"Te"},
+  {id:16,e:"\u2375",n:"Menta",              p:12, c:"Te"},
+  {id:17,e:"\uD83E\uDD64",n:"Zumo de Naranja",  p:10, c:"Jugos"},
+  {id:18,e:"\uD83C\uDF4B",n:"Limonada",         p:7,  c:"Jugos"},
+  {id:19,e:"\uD83C\uDF53",n:"Frutilla y Limon", p:10, c:"Jugos"},
+  {id:20,e:"\uD83C\uDF3F",n:"Hierba Buena",     p:10, c:"Jugos"},
+  {id:21,e:"\uD83D\uDCA7",n:"Agua",              p:7,  c:"Jugos"},
+  {id:22,e:"\uD83C\uDF7A",n:"Cerveza",           p:25, c:"Jugos"},
+  {id:23,e:"\uD83C\uDF6A",n:"Galletas",          p:5,  c:"Algo Dulce"},
+  {id:24,e:"\uD83C\uDF4E",n:"Rollo de Canela",   p:8,  c:"Algo Dulce"},
+  {id:25,e:"\uD83E\uDED0",n:"Pasion Arandano",   p:9,  c:"Algo Dulce"},
+  {id:26,e:"\uD83C\uDF4C",n:"Muffin de Banana",  p:8,  c:"Algo Dulce"},
+  {id:27,e:"\uD83E\uDDC1",n:"Cupcake Zanahoria", p:10, c:"Algo Dulce"},
+  {id:28,e:"\uD83C\uDF82",n:"Torta Chocolate",   p:7,  c:"Algo Dulce"},
+  {id:29,e:"\uD83C\uDF4F",n:"Torta de Manzana",  p:10, c:"Algo Dulce"},
+  {id:30,e:"\uD83E\uDED9",n:"Cheesecake",        p:25, c:"Algo Dulce"},
+  {id:31,e:"\uD83C\uDF68",n:"Helado Artesanal",  p:6,  c:"Algo Dulce"},
+  {id:32,e:"\uD83E\uDD6A",n:"Panini Jamon Queso",p:25, c:"Para el Hambre"},
+  {id:33,e:"\uD83C\uDF55",n:"Panini Pizza",      p:30, c:"Para el Hambre"},
+  {id:34,e:"\uD83C\uDF57",n:"Chicken Melt",      p:30, c:"Para el Hambre"},
+  {id:35,e:"\uD83E\uDED3",n:"Quesadilla Simple", p:25, c:"Para el Hambre"},
+  {id:36,e:"\uD83E\uDED3",n:"Quesadilla Double", p:40, c:"Para el Hambre"},
+  {id:37,e:"\uD83E\uDD6A",n:"Sandwich",          p:15, c:"Para el Hambre"},
+  {id:38,e:"\uD83E\uDEB0",n:"Waffles",            p:20, c:"Desayuno"},
+  {id:39,e:"\uD83C\uDF73",n:"Desayuno Americano", p:25, c:"Desayuno"},
+  {id:40,e:"\uD83E\uDD57",n:"Desayuno Fitness",   p:25, c:"Desayuno"},
+  {id:41,e:"\uD83C\uDF73",n:"Omelete",             p:20, c:"Desayuno"},
+  {id:42,e:"\uD83E\uDD23",n:"Quiche de Tocino",    p:25, c:"Desayuno"},
+  {id:43,e:"\uD83E\uDD63",n:"Yogurt Parfait",      p:15, c:"Desayuno"}
 ];
 var menuCache=[], histCache=[], colaCache=[];
 var pedido=[], catAct="Todos", bus="", carIdx=0, carTimer=null;
@@ -749,11 +739,22 @@ function initAdmin(){
     if(!s.empty){menuCache=[];s.forEach(function(d){menuCache.push(d.data());});}
     renderAdmin();
   }).catch(function(){renderAdmin();});
+  // Load QR
+  document.getElementById("qr-file").onchange=function(){
+    if(!this.files||!this.files[0]) return;
+    var r=new FileReader(); r.onload=function(e){
+      db.collection("configuracion").doc("qr").set({imagen:e.target.result});
+      showQR(e.target.result);
+    }; r.readAsDataURL(this.files[0]);
+  };
+  db.collection("configuracion").doc("qr").get().then(function(doc){
+    if(doc.exists&&doc.data().imagen) showQR(doc.data().imagen);
+  });
 }
 function renderAdmin(){
   var tbody=document.getElementById("atbody");if(!tbody) return;
   tbody.innerHTML="";
-  var cats=["Cafes","Bebidas","Alimentos","Postres"];
+  var cats=["Cafe","Te","Jugos","Algo Dulce","Para el Hambre","Desayuno"];
   getMenu().forEach(function(p){
     var tr=document.createElement("tr");
     var te=document.createElement("td");var ie=document.createElement("input");ie.className="edit-inp";ie.style.width="55px";ie.style.textAlign="center";ie.value=p.e;ie.id="ee-"+p.id;te.appendChild(ie);
