@@ -267,7 +267,24 @@ tr:last-child td{border-bottom:none;}
     <span class="ttl">Administrar Menú</span>
     <button class="btn-new" onclick="abrirModal()" style="margin-left:auto;">+ Nuevo</button>
   </div>
+  <!-- QR Section -->
+  <div style="background:#111;border:1px solid #333;border-radius:6px;padding:14px;margin-bottom:10px;">
+    <div style="font-size:.65rem;letter-spacing:3px;color:#C8922A;text-transform:uppercase;margin-bottom:8px;">QR de Pago</div>
+    <input type="file" id="qr-file" accept="image/*" style="display:none;">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+      <div class="qr-upl" onclick="document.getElementById('qr-file').click()" style="flex:1;">&#x1F4F7; Subir QR de banca movil</div>
+      <button onclick="delQR()" style="padding:7px 12px;background:rgba(192,57,43,.2);border:1px solid rgba(192,57,43,.35);color:#F1948A;border-radius:4px;cursor:pointer;font-size:.8rem;">Eliminar</button>
+    </div>
+    <div id="qr-prev" style="display:none;">
+      <img id="qr-prev-img" src="" alt="QR" style="max-height:100px;width:auto;display:block;margin:0 auto;border-radius:4px;border:1px solid #C8922A;">
+    </div>
+  </div>
+
   <div class="admin-box">
+    <div style="padding:10px 14px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:.65rem;letter-spacing:3px;color:#C8922A;text-transform:uppercase;">Productos</span>
+      <button onclick="resetMenuFirebase()" style="padding:5px 12px;background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);color:#F1948A;border-radius:3px;font-size:.72rem;cursor:pointer;">&#x21BA; Resetear Menu</button>
+    </div>
     <table><thead><tr><th>Icono</th><th>Producto</th><th>Cat.</th><th>Bs.</th><th></th></tr></thead>
     <tbody id="atbody"></tbody></table>
   </div>
@@ -740,16 +757,7 @@ function initAdmin(){
     renderAdmin();
   }).catch(function(){renderAdmin();});
   // Load QR
-  document.getElementById("qr-file").onchange=function(){
-    if(!this.files||!this.files[0]) return;
-    var r=new FileReader(); r.onload=function(e){
-      db.collection("configuracion").doc("qr").set({imagen:e.target.result});
-      showQR(e.target.result);
-    }; r.readAsDataURL(this.files[0]);
-  };
-  db.collection("configuracion").doc("qr").get().then(function(doc){
-    if(doc.exists&&doc.data().imagen) showQR(doc.data().imagen);
-  });
+
 }
 function renderAdmin(){
   var tbody=document.getElementById("atbody");if(!tbody) return;
@@ -894,6 +902,24 @@ function imprimirTicket(){
   w.document.write(ticket);
   w.document.close();
   setTimeout(function(){ w.print(); w.close(); }, 500);
+}
+
+function resetMenuFirebase(){
+  if(!confirm("Esto reemplazara el menu de Firebase con el menu completo del sistema. Continuar?")) return;
+  var batch = db.batch();
+  // Delete all existing
+  db.collection("menu").get().then(function(snap){
+    snap.forEach(function(d){ batch.delete(d.ref); });
+    // Add all default products
+    MENU.forEach(function(p){
+      batch.set(db.collection("menu").doc("prod_"+p.id), p);
+    });
+    return batch.commit();
+  }).then(function(){
+    menuCache = JSON.parse(JSON.stringify(MENU));
+    notif("Menu actualizado con " + MENU.length + " productos");
+    renderAdmin();
+  }).catch(function(e){ notif("Error: " + e.message); });
 }
 
 function notif(msg){
