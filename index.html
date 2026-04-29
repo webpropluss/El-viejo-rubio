@@ -373,6 +373,7 @@ var MENU=[
 var menuCache=[], histCache=[], colaCache=[];
 var pedido=[], catAct="Todos", bus="", carIdx=0, carTimer=null;
 var tipoPedido="mesa";
+var lastNumPedido=0;
 
 function setTipo(tipo){
   tipoPedido=tipo;
@@ -523,6 +524,7 @@ function cobrar(){
     var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now()};
     db.collection("historial").add(reg);
     db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
+    lastNumPedido = num;
     notif("Pedido #"+num+" enviado - Bs."+total);
     limpiar();
   });
@@ -878,7 +880,7 @@ function imprimirTicket(){
     + "<div class='linea'></div>"
     + "<div class='info'>Fecha: " + fechaStr + " " + horaStr + "</div>"
     + (cliente ? "<div class='info'>Cliente: " + cliente + "</div>" : "")
-    + "<div class='tipo'>" + tipoStr + "</div>"
+    + "<div class='tipo'>" + tipoStr + (lastNumPedido ? " &nbsp;|&nbsp; Pedido #" + lastNumPedido : "") + "</div>"
     + "<div class='linea'></div>"
     + "<table><thead><tr><th>Producto</th><th>P.Unit</th><th>Total</th></tr></thead>"
     + "<tbody>" + filasProds + "</tbody></table>"
