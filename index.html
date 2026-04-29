@@ -420,20 +420,9 @@ function initCaja() {
       renderPed();
     }
   });
-  // QR guardado
-  db.collection("configuracion").doc("qr").get().then(function(doc){
-    if(doc.exists&&doc.data().imagen) showQR(doc.data().imagen);
-  });
   // Eventos
   document.getElementById("srch").oninput=function(){bus=this.value.toLowerCase();renderProds();};
   document.getElementById("cli-inp").oninput=syncPed;
-  document.getElementById("qr-file").onchange=function(){
-    if(!this.files||!this.files[0]) return;
-    var r=new FileReader(); r.onload=function(e){
-      db.collection("configuracion").doc("qr").set({imagen:e.target.result});
-      showQR(e.target.result);
-    }; r.readAsDataURL(this.files[0]);
-  };
 }
 function subirMenuDefault(){
   var b=db.batch();
