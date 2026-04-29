@@ -505,19 +505,16 @@ function syncPed(){
 }
 function limpiar(){pedido=[];tipoPedido="mesa";var ci=document.getElementById("cli-inp");if(ci)ci.value="";setTipo("mesa");renderPed();syncPed();}
 function cobrar(){
-  if(!pedido.length) return;
+  if(!pedido.length){notif("El pedido esta vacio");return;}
   var total=0; pedido.forEach(function(i){total+=i.p*i.cant;});
   var cli=document.getElementById("cli-inp"); var c=cli?cli.value:"Sin nombre";
-  // Reiniciar contador si es un nuevo dia (desde las 7am)
   var ahora = new Date();
   var hoy7am = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 7, 0, 0).getTime();
-  // Si son antes de las 7am, el "dia actual" empezo ayer a las 7am
   if(ahora.getHours() < 7) hoy7am -= 24*60*60*1000;
 
   db.collection("configuracion").doc("contador").get().then(function(doc){
     var ultimo7am = doc.exists ? (doc.data().ultimo7am || 0) : 0;
     var n = doc.exists ? (doc.data().n || 0) : 0;
-    // Si el ultimo reinicio fue antes del 7am de hoy, reiniciar
     var num = (ultimo7am < hoy7am) ? 1 : n + 1;
     var nuevoUltimo7am = (ultimo7am < hoy7am) ? hoy7am : ultimo7am;
     db.collection("configuracion").doc("contador").set({n:num, ultimo7am:nuevoUltimo7am});
@@ -525,8 +522,8 @@ function cobrar(){
     db.collection("historial").add(reg);
     db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
     lastNumPedido = num;
-    notif("Pedido #"+num+" enviado - Bs."+total);
-    limpiar();
+    notif("Pedido #"+num+" cobrado - Bs."+total+" | Ahora imprime el ticket");
+    // NO limpiar aqui - se limpia al imprimir
   });
 }
 
@@ -829,6 +826,7 @@ function limpiarHistorial(){
 
 function imprimirTicket(){
   if(!pedido.length){ notif("El pedido esta vacio"); return; }
+  if(!lastNumPedido){ notif("Primero toca Cobrar para generar el numero de pedido"); return; }
   var cli = document.getElementById("cli-inp"); 
   var cliente = cli ? cli.value : "";
   var total = 0;
@@ -896,6 +894,8 @@ function imprimirTicket(){
   w.document.write(ticket);
   w.document.close();
   setTimeout(function(){ w.print(); w.close(); }, 500);
+  // Limpiar pedido despues de imprimir
+  setTimeout(function(){ limpiar(); lastNumPedido=0; }, 800);
 }
 
 function resetMenuFirebase(){
