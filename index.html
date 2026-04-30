@@ -1076,7 +1076,7 @@ function imprimirTicket(){
     + "<style>"
     + "* { margin:0; padding:0; box-sizing:border-box; }"
     + "@page { size: 80mm auto; margin: 0; }"
-    + ".cut-here { page-break-after: always; }"
+    + ".cut-here { display:block; page-break-after: always; break-after: page; margin:0; padding:0; }"
     + "body { font-family: 'Courier New', monospace; width: 76mm; padding: 1mm 3mm; font-size:12px; color:#000; }"
     + "h1 { font-size:16px; text-align:center; margin-bottom:1px; font-weight:bold; }"
     + "h2 { font-size:10px; text-align:center; letter-spacing:2px; color:#555; margin-bottom:3px; }"
@@ -1116,43 +1116,13 @@ function imprimirTicket(){
     + "<div class='linea'></div><br>"
     + "</body></html>";
 
-  // Split into two separate print jobs for auto-cut between them
-  // Build client ticket (without cook part)
-  var ticketCliente = ticket.split("class='corte cut-here'")[0] 
-    + "<div style='margin-top:4px;'></div></body></html>";
-
-  // Build cook ticket
-  var ticketCocina = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
-    + "<style>* { margin:0; padding:0; box-sizing:border-box; }"
-    + "@page { size: 80mm auto; margin: 0; }"
-    + "body { font-family: 'Courier New', monospace; width: 76mm; padding: 2mm 3mm; font-size:12px; color:#000; }"
-    + ".linea { border-top: 1px dashed #000; margin: 4px 0; }"
-    + "td { font-size:13px; padding:3px 4px; }"
-    + "@media print { body { width:76mm; } }</style></head><body>"
-    + "<div style='text-align:center;font-size:14px;font-weight:bold;margin:4px 0;border:1.5px solid #000;padding:4px;'>#" + (lastNumPedido||"?") + " | " + tipoStr + "</div>"
-    + (cliente ? "<div style='text-align:center;font-size:11px;margin-bottom:3px;'>"+cliente+"</div>" : "")
-    + "<div class='linea'></div>"
-    + "<table><tbody>" + filasCocina + "</tbody></table>"
-    + "<div class='linea'></div><br></body></html>";
-
-  // Print client ticket first
-  var w1 = window.open("", "ticket_cliente", "width=320,height=400,toolbar=0,menubar=0,location=0,status=0");
-  w1.document.write(ticketCliente);
-  w1.document.close();
-  setTimeout(function(){ 
-    w1.print(); 
-    w1.close();
-    // Print cook ticket after short delay (second cut)
-    setTimeout(function(){
-      var w2 = window.open("", "ticket_cocina", "width=320,height=300,toolbar=0,menubar=0,location=0,status=0");
-      w2.document.write(ticketCocina);
-      w2.document.close();
-      setTimeout(function(){ w2.print(); w2.close(); }, 400);
-    }, 1500);
-  }, 500);
-
+  // Single window with both tickets - page-break triggers auto cut between them
+  var w = window.open("", "ticket_viejo_rubio", "width=320,height=600,toolbar=0,menubar=0,location=0,status=0,scrollbars=0");
+  w.document.write(ticket);
+  w.document.close();
+  setTimeout(function(){ w.print(); w.close(); }, 500);
   // Limpiar pedido despues de imprimir
-  setTimeout(function(){ limpiar(); lastNumPedido=0; }, 3500);
+  setTimeout(function(){ limpiar(); lastNumPedido=0; }, 800);
 }
 
 function getPIN(){
