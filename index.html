@@ -245,7 +245,7 @@ tr:last-child td{border-bottom:none;}
     <div class="kpi"><div class="kpi-l">Ticket prom.</div><div class="kpi-v" id="kt">Bs. 0</div><div class="kpi-s">por pedido</div></div>
     <div class="kpi"><div class="kpi-l">Más vendido</div><div class="kpi-v" id="ktop" style="font-size:1rem;">--</div><div class="kpi-s" id="ktops">0 uds.</div></div>
   </div>
-  <button class="btn-admin" onclick="pedirPIN()">&#x2630; Administrar Menú</button>
+  <button class="btn-admin" onclick="ir('pg-admin',initAdmin)">&#x2630; Administrar Menú</button>
   <div class="hist">
     <div class="hist-top">
       <span class="hist-top-t">Historial</span>
@@ -1104,7 +1104,7 @@ function imprimirTicket(){
     + "<div class='linea'></div>"
     + "<div class='pie'>Gracias por su visita &nbsp; El Viejo Rubio</div>"
     + "<div class='corte'>- - - - - x CORTAR x - - - - -</div>"
-    + "<div style='text-align:center;font-size:20px;font-weight:bold;margin:5px 0;border:2px solid #000;padding:5px;'>#" + (lastNumPedido||"?") + " &nbsp;|&nbsp; " + tipoStr + "</div>"
+    + "<div style='text-align:center;font-size:14px;font-weight:bold;margin:4px 0;border:1.5px solid #000;padding:4px;'>#" + (lastNumPedido||"?") + " | " + tipoStr + "</div>"
     + (cliente ? "<div style='text-align:center;font-size:11px;margin-bottom:3px;'>"+cliente+"</div>" : "")
     + "<div class='linea'></div>"
     + "<table><tbody>" + filasCocina + "</tbody></table>"
@@ -1124,9 +1124,12 @@ function getPIN(){
 }
 
 function pedirPIN(){
+  pedirPINGestion();
+}
+function pedirPINGestion(){
   var pin = getPIN();
-  if(!pin){ ir('pg-admin', initAdmin); return; }
-  // Mostrar modal PIN
+  if(!pin){ ir('pg-gestion', initGestion); return; }
+  window._pinDestino = 'gestion';
   document.getElementById("pin-modal").style.display="flex";
   document.getElementById("pin-modal-inp").value="";
   setTimeout(function(){document.getElementById("pin-modal-inp").focus();},200);
@@ -1135,8 +1138,9 @@ function confirmarPIN(){
   var pin=getPIN();
   var ingresado=document.getElementById("pin-modal-inp").value;
   document.getElementById("pin-modal").style.display="none";
-  if(ingresado===pin){ ir('pg-admin',initAdmin); }
-  else { notif("Contrasena incorrecta"); }
+  if(ingresado===pin){
+    ir('pg-gestion', initGestion);
+  } else { notif("Contrasena incorrecta"); }
 }
 function cancelarPIN(){
   document.getElementById("pin-modal").style.display="none";
