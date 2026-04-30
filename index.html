@@ -1202,7 +1202,7 @@ function renderCatsAdmin(){
 }
 
 function actualizarSelectCats(){
-  var sel=document.getElementById("m-cat"); if(!sel) return;
+  var sel=document.getElementById("m-c"); if(!sel) return;
   sel.innerHTML="";
   catsCache.forEach(function(c){
     var o=document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o);
