@@ -327,7 +327,7 @@ tr:last-child td{border-bottom:none;}
       <div class="mf"><label class="ml">Nombre</label><input class="mi" id="m-n" type="text" placeholder="Ej: Mocha"></div>
     </div>
     <div class="mrow">
-      <div class="mf"><label class="ml">Categoría</label><select class="ms" id="m-c"><option value="Cafes">Cafés</option><option value="Bebidas">Bebidas</option><option value="Alimentos">Alimentos</option><option value="Postres">Postres</option></select></div>
+      <div class="mf"><label class="ml">Categoría</label><select class="ms" id="m-c"></select></div>
       <div class="mf"><label class="ml">Precio Bs.</label><input class="mi" id="m-p" type="number" placeholder="0" min="0"></div>
     </div>
     <div class="mactions">
@@ -953,14 +953,15 @@ function initAdmin(){
   db.collection("menu").orderBy("id").get().then(function(s){
     if(!s.empty){menuCache=[];s.forEach(function(d){menuCache.push(d.data());});}
     renderAdmin();
-  }).catch(function(){renderAdmin();});
+    actualizarSelectCats();
+  }).catch(function(){renderAdmin(); actualizarSelectCats();});
   // Load QR
 
 }
 function renderAdmin(){
   var tbody=document.getElementById("atbody");if(!tbody) return;
   tbody.innerHTML="";
-  var cats=["Cafe","Te","Jugos","Algo Dulce","Para el Hambre","Desayuno"];
+  var cats=catsCache.length ? catsCache : ["Cafe","Te","Jugos","Algo Dulce","Para el Hambre","Desayuno"];
   getMenu().forEach(function(p){
     var tr=document.createElement("tr");
     var te=document.createElement("td");var ie=document.createElement("input");ie.className="edit-inp";ie.style.width="55px";ie.style.textAlign="center";ie.value=p.e;ie.id="ee-"+p.id;te.appendChild(ie);
@@ -992,7 +993,10 @@ function delProd(id,n){
     menuCache=menuCache.filter(function(p){return p.id!==id;});notif("Eliminado");renderAdmin();
   });
 }
-function abrirModal(){document.getElementById("modal").classList.add("on");}
+function abrirModal(){
+  actualizarSelectCats();
+  document.getElementById("modal").classList.add("on");
+}
 function cerrarModal(){document.getElementById("modal").classList.remove("on");}
 function guardarNuevo(){
   var e=document.getElementById("m-e").value||"\u2615";
