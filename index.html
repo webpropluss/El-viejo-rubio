@@ -485,20 +485,19 @@ function volver() {
 
 // CAJA
 function initCaja() {
-  // Cargar menu de Firebase
-  // Load categories from Firebase first, then menu
+  // SYNC: Cargar cats y menu desde localStorage PRIMERO (instantaneo)
+  try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
+  try{var cm=localStorage.getItem('evr_menu');if(cm){var pm=JSON.parse(cm);if(pm&&pm.length)menuCache=pm;}}catch(e){}
+  renderCats(); renderProds(); // Mostrar inmediatamente con datos locales
+
+  // ASYNC: Actualizar desde Firebase si hay internet
   db.collection("configuracion").doc("categorias").get().then(function(doc){
     if(doc.exists && doc.data().lista && doc.data().lista.length){
       catsCache = doc.data().lista;
       try{localStorage.setItem('evr_cats',JSON.stringify(catsCache));}catch(e){}
-    } else {
-      try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
+      renderCats(); // Actualizar UI con cats de Firebase
     }
-  }).catch(function(){
-    try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
-  });
-  // Also pre-load menu from localStorage while Firebase loads
-  try{var cm=localStorage.getItem('evr_menu');if(cm){var pm=JSON.parse(cm);if(pm&&pm.length){menuCache=pm;renderCats();renderProds();}}}catch(e){}
+  }).catch(function(){ /* sin internet - ya cargamos de localStorage */ });
   db.collection("menu").orderBy("id").get().then(function(s){
     if(!s.empty){
       menuCache=[];
@@ -506,15 +505,18 @@ function initCaja() {
       try{localStorage.setItem('evr_menu', JSON.stringify(menuCache));}catch(e){}
     } else {
       menuCache=JSON.parse(JSON.stringify(MENU)); subirMenuDefault();
+      try{localStorage.setItem('evr_menu', JSON.stringify(menuCache));}catch(e){}
     }
-    renderCats(); renderProds();
+    renderProds(); // Solo actualizar productos, cats ya estan cargadas
   }).catch(function(){
     // Sin internet - usar cache local
     var cached = localStorage.getItem('evr_menu');
     if(cached){try{menuCache=JSON.parse(cached);}catch(e){menuCache=MENU;}}
     else menuCache=MENU;
+    // Reload cats from localStorage too
+    try{var sc2=localStorage.getItem('evr_cats');if(sc2){var pc2=JSON.parse(sc2);if(pc2&&pc2.length)catsCache=pc2;}}catch(e){}
     renderCats(); renderProds();
-    notif("Sin internet - usando menu guardado");
+    notif("Sin internet - usando datos guardados");
   });
   // Escuchar pedido
   db.collection("pedido_actual").doc("actual").onSnapshot(function(doc){
@@ -546,8 +548,16 @@ function delQR(){
   document.querySelector(".qr-upl").textContent="\uD83D\uDCF7 Subir QR de banca";
 }
 function renderCats(){
-  var m=getMenu(), cats=["Todos"];
-  m.forEach(function(p){if(cats.indexOf(p.c)===-1) cats.push(p.c);});
+  // Use catsCache if available, otherwise extract from menu
+  var cats=["Todos"];
+  if(catsCache && catsCache.length){
+    catsCache.forEach(function(c){cats.push(c);});
+  } else {
+    var m=getMenu();
+    m.forEach(function(p){if(cats.indexOf(p.c)===-1) cats.push(p.c);});
+  }
+  // Remove duplicates
+  cats = cats.filter(function(c,i){return cats.indexOf(c)===i;});
   var cont=document.getElementById("cats"); if(!cont) return;
   cont.innerHTML="";
   cats.forEach(function(c){
