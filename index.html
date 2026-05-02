@@ -1274,6 +1274,45 @@ function imprimirTicket(){
   setTimeout(function(){ limpiar(); }, 800);
 }
 
+function sincronizarTodo(){
+  var st = document.getElementById("sync-status");
+  if(st) st.textContent = "Sincronizando...";
+  if(!navigator.onLine){
+    if(st) st.textContent = "Sin internet - usando datos guardados";
+    return;
+  }
+  var promesas = [
+    // Sincronizar menu
+    db.collection("menu").orderBy("id").get().then(function(s){
+      if(!s.empty){
+        var m=[];
+        s.forEach(function(d){m.push(d.data());});
+        try{localStorage.setItem('evr_menu', JSON.stringify(m));}catch(e){}
+        menuCache = m;
+      }
+    }),
+    // Sincronizar categorias
+    db.collection("configuracion").doc("categorias").get().then(function(doc){
+      if(doc.exists && doc.data().lista && doc.data().lista.length){
+        catsCache = doc.data().lista;
+        try{localStorage.setItem('evr_cats', JSON.stringify(catsCache));}catch(e){}
+      }
+    }),
+    // Sincronizar QR
+    db.collection("configuracion").doc("qr").get().then(function(doc){
+      if(doc.exists && doc.data().imagen){
+        try{localStorage.setItem('evr_qr', doc.data().imagen);}catch(e){}
+      }
+    })
+  ];
+  Promise.all(promesas).then(function(){
+    if(st){ st.style.color="#2ecc71"; st.textContent = "\u2713 Datos sincronizados correctamente"; }
+    setTimeout(function(){ if(st){ st.style.color="#555"; st.textContent=""; } }, 4000);
+  }).catch(function(e){
+    if(st){ st.style.color="#e74c3c"; st.textContent = "Error al sincronizar"; }
+  });
+}
+
 function getPIN(){
   try{ return localStorage.getItem('evr_pin')||""; }catch(e){ return ""; }
 }
