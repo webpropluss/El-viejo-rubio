@@ -177,7 +177,7 @@ tr:last-child td{border-bottom:none;}
 
       <div id="ped-list"><div class="ped-empty">Pedido vacío</div></div>
       <div class="total">Bs. <span id="total">0</span></div>
-      <button class="btn-g" id="btn-cobrar-main" onclick="cobrar()">&#x2713; Cobrar</button>
+      <button class="btn-g" id="btn-cobrar-main" onclick="cobrar()">✓ Cobrar</button>
       <button onclick="imprimirTicket()" id="btn-imprimir" style="width:100%;padding:11px;background:transparent;border:2px solid #C8922A;border-radius:6px;color:#C8922A;font-size:.95rem;font-weight:bold;cursor:pointer;margin-bottom:6px;">&#x1F5A8; Imprimir Ticket</button>
       <button id="btn-anular" onclick="anularCobro()" style="display:none;width:100%;padding:9px;background:rgba(231,76,60,.15);border:2px solid #e74c3c;border-radius:6px;color:#e74c3c;font-size:.85rem;font-weight:bold;cursor:pointer;margin-bottom:6px;">&#x21A9; Anular cobro</button>
       <button class="btn-r" onclick="limpiar()">Cancelar pedido</button>
@@ -260,7 +260,7 @@ tr:last-child td{border-bottom:none;}
         <button class="btn-pdf" onclick="expPDF()">PDF</button>
       </div>
     </div>
-    <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Prods</th><th>Total</th></tr></thead>
+    <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Prods</th><th>Total</th><th></th></tr></thead>
     <tbody id="htbody"></tbody></table>
     <div id="hempty" style="color:#555;text-align:center;padding:30px;font-size:.85rem;">Sin registros</div>
   </div>
@@ -611,7 +611,7 @@ function limpiar(){
   setTipo("mesa");renderPed();syncPed();
   // Reset cobrar button
   var btnC=document.getElementById("btn-cobrar-main");
-  if(btnC){btnC.disabled=false;btnC.style.background="";btnC.style.color="";btnC.textContent="&#x2713; Cobrar";}
+  if(btnC){btnC.disabled=false;btnC.style.background="";btnC.style.color="";btnC.innerHTML="\u2713 Cobrar";}
   var btnA=document.getElementById("btn-anular");
   if(btnA) btnA.style.display="none";
 }
@@ -649,7 +649,7 @@ function cobrar(){
     lastCobradoData = reg;
     yaImpreso = false;
     var btnC=document.getElementById("btn-cobrar-main");
-    if(btnC){btnC.disabled=true;btnC.style.background="#2D6A4F";btnC.style.color="#A7F3D0";btnC.textContent="Cobrado #"+num+" &#x2713;";}
+    if(btnC){btnC.disabled=true;btnC.style.background="#2D6A4F";btnC.style.color="#A7F3D0";btnC.innerHTML="Cobrado #"+num+" \u2713";}
     var btnA=document.getElementById("btn-anular");
     if(btnA) btnA.style.display="block";
     notif("Pedido #"+num+" cobrado - Bs."+total+" | Ahora imprime el ticket");
@@ -662,7 +662,7 @@ function cobrar(){
     lastCobradoData = reg;
     yaImpreso = false;
     var btnC = document.getElementById("btn-cobrar-main");
-    if(btnC){ btnC.disabled=true; btnC.style.background="#2D6A4F"; btnC.style.color="#A7F3D0"; btnC.textContent="Cobrado #"+numLocal+" &#x2713;"; }
+    if(btnC){ btnC.disabled=true; btnC.style.background="#2D6A4F"; btnC.style.color="#A7F3D0"; btnC.innerHTML="Cobrado #"+numLocal+" \u2713"; }
     var btnA = document.getElementById("btn-anular");
     if(btnA) btnA.style.display="block";
     notif("Pedido #"+numLocal+" guardado sin internet - se sincronizara despues");
@@ -885,7 +885,13 @@ function renderGestion(){
     var t3=document.createElement("td");t3.textContent=h.cliente||"\u2014";
     var t4=document.createElement("td");var sp=document.createElement("span");sp.className="bp";sp.textContent=h.items.length+" prod.";t4.appendChild(sp);
     var t5=document.createElement("td");t5.className="mc";t5.textContent="Bs. "+h.total;
-    tr.appendChild(t1);tr.appendChild(t2);tr.appendChild(t3);tr.appendChild(t4);tr.appendChild(t5);
+    var t6=document.createElement("td");
+    var bdel=document.createElement("button");
+    bdel.style.cssText="padding:3px 8px;background:rgba(192,57,43,.2);border:1px solid rgba(192,57,43,.35);color:#F1948A;border-radius:3px;cursor:pointer;font-size:.75rem;";
+    bdel.textContent="X";
+    (function(hh){bdel.onclick=function(){eliminarPedidoHist(hh);};})(h);
+    t6.appendChild(bdel);
+    tr.appendChild(t1);tr.appendChild(t2);tr.appendChild(t3);tr.appendChild(t4);tr.appendChild(t5);tr.appendChild(t6);
     tbody.appendChild(tr);
   });
 }
@@ -1060,6 +1066,28 @@ function guardarNuevo(){
     menuCache.push(np);cerrarModal();notif(n+" agregado");renderAdmin();
   });
 }
+function eliminarPedidoHist(h){
+  if(!confirm("Eliminar pedido #"+(h.num||"")+" de Bs."+h.total+"?")) return;
+  // Buscar y eliminar de Firebase por timestamp
+  db.collection("historial").where("ts","==",h.ts).get().then(function(snap){
+    if(snap.empty){
+      // Intentar por num+fecha
+      db.collection("historial").where("num","==",h.num).get().then(function(snap2){
+        snap2.forEach(function(doc){ doc.ref.delete(); });
+      });
+    } else {
+      snap.forEach(function(doc){ doc.ref.delete(); });
+    }
+    // Tambien eliminar de offline queue si existe
+    offlineQueue = offlineQueue.filter(function(r){ return r.ts !== h.ts; });
+    saveQueue();
+    // Actualizar histCache local
+    histCache = histCache.filter(function(r){ return r.ts !== h.ts; });
+    renderGestion();
+    notif("Pedido eliminado del historial");
+  }).catch(function(e){ notif("Error: "+e.message); });
+}
+
 function anularCobro(){
   if(yaImpreso){ notif("Ya fue impreso - anulalo desde Gestion"); return; }
   if(!lastCobradoData){ limpiar(); return; }
@@ -1089,8 +1117,24 @@ function anularCobro(){
   offlineQueue = offlineQueue.filter(function(r){ return r.ts !== ts; });
   saveQueue();
 
-  notif("Cobro #"+num+" anulado");
+  // Restaurar pedido para seguir editando
+  var pedidoRestaurado = lastCobradoData ? lastCobradoData.items.slice() : [];
+  var clienteRestaurado = lastCobradoData ? lastCobradoData.cliente : "";
+  var tipoRestaurado = lastCobradoData ? lastCobradoData.tipo : "mesa";
+  
+  notif("Cobro #"+num+" anulado - puedes editar el pedido");
   limpiar();
+  
+  // Restaurar despues de limpiar
+  if(pedidoRestaurado.length){
+    pedido = pedidoRestaurado;
+    tipoPedido = tipoRestaurado;
+    setTipo(tipoRestaurado);
+    var ci=document.getElementById("cli-inp");
+    if(ci) ci.value=clienteRestaurado||"";
+    renderPed();
+    syncPed();
+  }
 }
 
 function limpiarHistorial(){
