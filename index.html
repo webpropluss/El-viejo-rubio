@@ -486,7 +486,7 @@ function volver() {
 // CAJA
 function initCaja() {
   // Cargar menu de Firebase
-  // Load categories from Firebase
+  // Load categories from Firebase first, then menu
   db.collection("configuracion").doc("categorias").get().then(function(doc){
     if(doc.exists && doc.data().lista && doc.data().lista.length){
       catsCache = doc.data().lista;
@@ -497,6 +497,8 @@ function initCaja() {
   }).catch(function(){
     try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
   });
+  // Also pre-load menu from localStorage while Firebase loads
+  try{var cm=localStorage.getItem('evr_menu');if(cm){var pm=JSON.parse(cm);if(pm&&pm.length){menuCache=pm;renderCats();renderProds();}}}catch(e){}
   db.collection("menu").orderBy("id").get().then(function(s){
     if(!s.empty){
       menuCache=[];
@@ -834,7 +836,8 @@ function initGestion(){
       var yaEsta=histCache.some(function(h){return h.ts===reg.ts;});
       if(!yaEsta) histCache.push(reg);
     });
-    histCache.sort(function(a,b){return b.ts-a.ts;});
+    // Ordenar por timestamp descendente (mas reciente primero)
+    histCache.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
     renderGestion();
   }).catch(function(){
     // Sin internet - mostrar solo offline queue
@@ -861,6 +864,13 @@ function fechaLocalFromISO(iso){
   return y+"-"+m+"-"+dia;
 }
 function renderGestion(){
+  // Deduplicar histCache por ts (timestamp unico)
+  var seen={};
+  histCache = histCache.filter(function(h){
+    var key = h.ts || (h.num+"_"+h.fecha);
+    if(seen[key]) return false;
+    seen[key]=true; return true;
+  });
   var hist=getFiltHist(),tv=hist.length,ti=0;
   hist.forEach(function(h){ti+=h.total;});
   var tk=tv?Math.round(ti/tv):0;
