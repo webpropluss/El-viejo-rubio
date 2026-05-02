@@ -177,8 +177,9 @@ tr:last-child td{border-bottom:none;}
 
       <div id="ped-list"><div class="ped-empty">Pedido vacío</div></div>
       <div class="total">Bs. <span id="total">0</span></div>
-      <button class="btn-g" onclick="cobrar()">&#x2713; Cobrar</button>
-      <button onclick="imprimirTicket()" style="width:100%;padding:11px;background:transparent;border:2px solid #C8922A;border-radius:6px;color:#C8922A;font-size:.95rem;font-weight:bold;cursor:pointer;margin-bottom:6px;">&#x1F5A8; Imprimir Ticket</button>
+      <button class="btn-g" id="btn-cobrar-main" onclick="cobrar()">&#x2713; Cobrar</button>
+      <button onclick="imprimirTicket()" id="btn-imprimir" style="width:100%;padding:11px;background:transparent;border:2px solid #C8922A;border-radius:6px;color:#C8922A;font-size:.95rem;font-weight:bold;cursor:pointer;margin-bottom:6px;">&#x1F5A8; Imprimir Ticket</button>
+      <button id="btn-anular" onclick="anularCobro()" style="display:none;width:100%;padding:9px;background:rgba(231,76,60,.15);border:2px solid #e74c3c;border-radius:6px;color:#e74c3c;font-size:.85rem;font-weight:bold;cursor:pointer;margin-bottom:6px;">&#x21A9; Anular cobro</button>
       <button class="btn-r" onclick="limpiar()">Cancelar pedido</button>
     </div>
   </div>
@@ -311,6 +312,7 @@ tr:last-child td{border-bottom:none;}
   <div class="admin-box" style="overflow-x:auto;">
     <div style="padding:10px 14px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;">
       <span style="font-size:.65rem;letter-spacing:3px;color:#C8922A;text-transform:uppercase;">Productos</span>
+      <button onclick="sincronizarCats()" style="padding:5px 12px;background:rgba(45,106,79,.2);border:1px solid rgba(45,106,79,.4);color:#A7F3D0;border-radius:3px;font-size:.72rem;cursor:pointer;margin-right:6px;">&#x21BB; Sincronizar Cats</button>
       <button onclick="resetMenuFirebase()" style="padding:5px 12px;background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);color:#F1948A;border-radius:3px;font-size:.72rem;cursor:pointer;">&#x21BA; Resetear Menu</button>
     </div>
     <table><thead><tr><th>Icono</th><th>Producto</th><th>Cat.</th><th>Bs.</th><th></th></tr></thead>
@@ -484,8 +486,17 @@ function volver() {
 // CAJA
 function initCaja() {
   // Cargar menu de Firebase
-  // Load saved categories
-  try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
+  // Load categories from Firebase
+  db.collection("configuracion").doc("categorias").get().then(function(doc){
+    if(doc.exists && doc.data().lista && doc.data().lista.length){
+      catsCache = doc.data().lista;
+      try{localStorage.setItem('evr_cats',JSON.stringify(catsCache));}catch(e){}
+    } else {
+      try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
+    }
+  }).catch(function(){
+    try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
+  });
   db.collection("menu").orderBy("id").get().then(function(s){
     if(!s.empty){
       menuCache=[];
@@ -594,7 +605,16 @@ function syncPed(){
   var cli=document.getElementById("cli-inp"); var c=cli?cli.value:"";
   db.collection("pedido_actual").doc("actual").set({items:pedido,cliente:c,tipo:tipoPedido,ts:Date.now()});
 }
-function limpiar(){pedido=[];tipoPedido="mesa";var ci=document.getElementById("cli-inp");if(ci)ci.value="";setTipo("mesa");renderPed();syncPed();}
+function limpiar(){
+  pedido=[];tipoPedido="mesa";lastNumPedido=0;lastCobradoData=null;yaImpreso=false;
+  var ci=document.getElementById("cli-inp");if(ci)ci.value="";
+  setTipo("mesa");renderPed();syncPed();
+  // Reset cobrar button
+  var btnC=document.getElementById("btn-cobrar-main");
+  if(btnC){btnC.disabled=false;btnC.style.background="";btnC.style.color="";btnC.textContent="&#x2713; Cobrar";}
+  var btnA=document.getElementById("btn-anular");
+  if(btnA) btnA.style.display="none";
+}
 function cobrar(){
   if(!pedido.length){notif("El pedido esta vacio");return;}
   var total=0; pedido.forEach(function(i){total+=i.p*i.cant;});
@@ -606,20 +626,32 @@ function cobrar(){
   // Obtener numero local si no hay internet
   var numLocal = parseInt(localStorage.getItem('evr_contador')||'0') + 1;
   
-  db.collection("configuracion").doc("contador").get().then(function(doc){
-    var ultimo7am = doc.exists ? (doc.data().ultimo7am || 0) : 0;
-    var n = doc.exists ? (doc.data().n || 0) : 0;
-    var num = (ultimo7am < hoy7am) ? 1 : n + 1;
-    var nuevoUltimo7am = (ultimo7am < hoy7am) ? hoy7am : ultimo7am;
+  // Transaccion atomica - evita numeros duplicados entre dispositivos
+  var contRef = db.collection("configuracion").doc("contador");
+  db.runTransaction(function(t){
+    return t.get(contRef).then(function(doc){
+      var ultimo7am = doc.exists ? (doc.data().ultimo7am||0) : 0;
+      var n = doc.exists ? (doc.data().n||0) : 0;
+      var num = (ultimo7am < hoy7am) ? 1 : n+1;
+      var nuevo7am = (ultimo7am < hoy7am) ? hoy7am : ultimo7am;
+      t.set(contRef, {n:num, ultimo7am:nuevo7am});
+      return num;
+    });
+  }).then(function(num){
     localStorage.setItem('evr_contador', num);
-    db.collection("configuracion").doc("contador").set({n:num, ultimo7am:nuevoUltimo7am});
     var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now()};
     db.collection("historial").add(reg).catch(function(){
-      // Sin internet - guardar en cola local
       offlineQueue.push(reg); saveQueue();
       notif("Sin internet - pedido guardado localmente");
     });
+    db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
     lastNumPedido = num;
+    lastCobradoData = reg;
+    yaImpreso = false;
+    var btnC=document.getElementById("btn-cobrar-main");
+    if(btnC){btnC.disabled=true;btnC.style.background="#2D6A4F";btnC.style.color="#A7F3D0";btnC.textContent="Cobrado #"+num+" &#x2713;";}
+    var btnA=document.getElementById("btn-anular");
+    if(btnA) btnA.style.display="block";
     notif("Pedido #"+num+" cobrado - Bs."+total+" | Ahora imprime el ticket");
   }).catch(function(){
     // Sin internet - usar contador local
@@ -627,6 +659,12 @@ function cobrar(){
     var reg={num:numLocal,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now(),offline:true};
     offlineQueue.push(reg); saveQueue();
     lastNumPedido = numLocal;
+    lastCobradoData = reg;
+    yaImpreso = false;
+    var btnC = document.getElementById("btn-cobrar-main");
+    if(btnC){ btnC.disabled=true; btnC.style.background="#2D6A4F"; btnC.style.color="#A7F3D0"; btnC.textContent="Cobrado #"+numLocal+" &#x2713;"; }
+    var btnA = document.getElementById("btn-anular");
+    if(btnA) btnA.style.display="block";
     notif("Pedido #"+numLocal+" guardado sin internet - se sincronizara despues");
   });
 }
@@ -947,9 +985,20 @@ function expPDF(){
 
 // ADMIN
 function initAdmin(){
-  // Load saved categories
-  try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
-  renderCatsAdmin();
+  // Load categories from Firebase (source of truth)
+  db.collection("configuracion").doc("categorias").get().then(function(doc){
+    if(doc.exists && doc.data().lista && doc.data().lista.length){
+      catsCache = doc.data().lista;
+      try{localStorage.setItem('evr_cats',JSON.stringify(catsCache));}catch(e){}
+    } else {
+      // Fallback to localStorage
+      try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
+    }
+    renderCatsAdmin();
+  }).catch(function(){
+    try{var sc=localStorage.getItem('evr_cats');if(sc){var pc=JSON.parse(sc);if(pc&&pc.length)catsCache=pc;}}catch(e){}
+    renderCatsAdmin();
+  });
   db.collection("menu").orderBy("id").get().then(function(s){
     if(!s.empty){menuCache=[];s.forEach(function(d){menuCache.push(d.data());});}
     renderAdmin();
@@ -1011,6 +1060,39 @@ function guardarNuevo(){
     menuCache.push(np);cerrarModal();notif(n+" agregado");renderAdmin();
   });
 }
+function anularCobro(){
+  if(yaImpreso){ notif("Ya fue impreso - anulalo desde Gestion"); return; }
+  if(!lastCobradoData){ limpiar(); return; }
+  if(!confirm("Anular el cobro del Pedido #"+lastNumPedido+"? Se eliminara del historial y cocina.")) return;
+
+  // Remove from Firebase
+  var num = lastNumPedido;
+  var ts = lastCobradoData.ts;
+
+  // Remove from historial
+  db.collection("historial").where("ts","==",ts).get().then(function(snap){
+    snap.forEach(function(doc){ doc.ref.delete(); });
+  });
+  // Remove from cola_cocina
+  db.collection("cola_cocina").where("timestamp","==",ts).get().then(function(snap){
+    snap.forEach(function(doc){ doc.ref.delete(); });
+  });
+  // Revert counter
+  db.collection("configuracion").doc("contador").get().then(function(doc){
+    if(doc.exists){
+      var n = (doc.data().n||1)-1;
+      if(n < 0) n = 0;
+      db.collection("configuracion").doc("contador").set({n:n, ultimo7am:doc.data().ultimo7am||0});
+    }
+  });
+  // Remove from offline queue if was offline
+  offlineQueue = offlineQueue.filter(function(r){ return r.ts !== ts; });
+  saveQueue();
+
+  notif("Cobro #"+num+" anulado");
+  limpiar();
+}
+
 function limpiarHistorial(){
   if(!confirm("\u00bfEst\u00e1s seguro de que deseas eliminar TODO el historial de pedidos? Esta acci\u00f3n no se puede deshacer.")) return;
   if(!confirm("\u00dalima confirmaci\u00f3n: Se borrar\u00e1n todos los registros de ventas. \u00bfContinuar?")) return;
@@ -1121,8 +1203,11 @@ function imprimirTicket(){
   w.document.write(ticket);
   w.document.close();
   setTimeout(function(){ w.print(); w.close(); }, 500);
-  // Limpiar pedido despues de imprimir
-  setTimeout(function(){ limpiar(); lastNumPedido=0; }, 800);
+  // Marcar como impreso y limpiar
+  yaImpreso = true;
+  var btnA=document.getElementById("btn-anular");
+  if(btnA) btnA.style.display="none";
+  setTimeout(function(){ limpiar(); }, 800);
 }
 
 function getPIN(){
@@ -1229,6 +1314,8 @@ function agregarCategoria(){
   if(catsCache.indexOf(nueva)!==-1){notif("Esa categoria ya existe");return;}
   catsCache.push(nueva);
   try{localStorage.setItem('evr_cats',JSON.stringify(catsCache));}catch(e){}
+  // Guardar en Firebase para sincronizar con todos los dispositivos
+  db.collection("configuracion").doc("categorias").set({lista:catsCache});
   inp.value="";
   renderCatsAdmin();
   notif("Categoria '"+nueva+"' agregada");
@@ -1240,8 +1327,30 @@ function eliminarCategoria(cat){
   if(!confirm("Eliminar categoria '"+cat+"'?")) return;
   catsCache=catsCache.filter(function(c){return c!==cat;});
   try{localStorage.setItem('evr_cats',JSON.stringify(catsCache));}catch(e){}
+  // Guardar en Firebase
+  db.collection("configuracion").doc("categorias").set({lista:catsCache});
   renderCatsAdmin();
   notif("Categoria eliminada");
+}
+
+function sincronizarCats(){
+  // Extraer categorias unicas de los productos actuales en Firebase
+  db.collection("menu").get().then(function(snap){
+    var cats = [];
+    snap.forEach(function(doc){
+      var c = doc.data().c || doc.data().cat;
+      if(c && cats.indexOf(c) === -1) cats.push(c);
+    });
+    if(!cats.length){ notif("No hay productos en Firebase para sincronizar"); return; }
+    // Agregar categorias que ya existen en catsCache pero no en Firebase
+    catsCache.forEach(function(c){ if(cats.indexOf(c)===-1) cats.push(c); });
+    catsCache = cats;
+    try{localStorage.setItem('evr_cats',JSON.stringify(catsCache));}catch(e){}
+    db.collection("configuracion").doc("categorias").set({lista:catsCache}).then(function(){
+      renderCatsAdmin();
+      notif("Categorias sincronizadas: "+catsCache.join(", "));
+    });
+  }).catch(function(e){ notif("Error: "+e.message); });
 }
 
 function resetMenuFirebase(){
