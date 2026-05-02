@@ -500,26 +500,26 @@ function initCaja() {
       renderCats(); // Actualizar UI con cats de Firebase
     }
   }).catch(function(){ /* sin internet - ya cargamos de localStorage */ });
-  db.collection("menu").orderBy("id").get().then(function(s){
-    if(!s.empty){
-      menuCache=[];
-      s.forEach(function(d){menuCache.push(d.data());});
-      try{localStorage.setItem('evr_menu', JSON.stringify(menuCache));}catch(e){}
-    } else {
-      menuCache=JSON.parse(JSON.stringify(MENU)); subirMenuDefault();
-      try{localStorage.setItem('evr_menu', JSON.stringify(menuCache));}catch(e){}
-    }
-    renderProds(); // Solo actualizar productos, cats ya estan cargadas
-  }).catch(function(){
-    // Sin internet - usar cache local
-    var cached = localStorage.getItem('evr_menu');
-    if(cached){try{menuCache=JSON.parse(cached);}catch(e){menuCache=MENU;}}
-    else menuCache=MENU;
-    // Reload cats from localStorage too
-    try{var sc2=localStorage.getItem('evr_cats');if(sc2){var pc2=JSON.parse(sc2);if(pc2&&pc2.length)catsCache=pc2;}}catch(e){}
-    renderCats(); renderProds();
-    notif("Sin internet - usando datos guardados");
-  });
+  // Solo cargar de Firebase si hay internet
+  if(navigator.onLine){
+    db.collection("menu").orderBy("id").get().then(function(s){
+      if(!s.empty){
+        var temp=[];
+        s.forEach(function(d){temp.push(d.data());});
+        if(temp.length > 0){
+          menuCache = temp;
+          try{localStorage.setItem('evr_menu', JSON.stringify(menuCache));}catch(e){}
+          renderProds();
+        }
+      }
+    }).catch(function(){
+      // Firebase fallo - menuCache ya cargado de localStorage arriba
+      renderProds();
+    });
+  } else {
+    // Sin internet - menuCache ya fue cargado de localStorage
+    renderProds();
+  }
   // Escuchar pedido
   db.collection("pedido_actual").doc("actual").onSnapshot(function(doc){
     if(doc.exists){
