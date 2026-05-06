@@ -1409,6 +1409,10 @@ function pedirPIN(){
   pedirPINGestion();
 }
 function pedirPINGestion(){
+  // Si pinCache esta vacio, intentar cargar de localStorage primero
+  if(!pinCache){
+    try{pinCache = localStorage.getItem('evr_pin')||"";}catch(e){}
+  }
   var pin = getPIN();
   if(!pin){ ir('pg-gestion', initGestion); return; }
   window._pinDestino = 'gestion';
