@@ -318,7 +318,7 @@ tr:last-child td{border-bottom:none;}
       <button onclick="sincronizarCats()" style="padding:5px 12px;background:rgba(45,106,79,.2);border:1px solid rgba(45,106,79,.4);color:#A7F3D0;border-radius:3px;font-size:.72rem;cursor:pointer;margin-right:6px;">&#x21BB; Sincronizar Cats</button>
       <button onclick="resetMenuFirebase()" style="padding:5px 12px;background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);color:#F1948A;border-radius:3px;font-size:.72rem;cursor:pointer;">&#x21BA; Resetear Menu</button>
     </div>
-    <table><thead><tr><th>Icono</th><th>Producto</th><th>Cat.</th><th>Bs.</th><th></th></tr></thead>
+    <table><thead><tr><th>Icono</th><th>Producto</th><th>Cat.</th><th>Bs.</th><th>Opciones</th><th></th></tr></thead>
     <tbody id="atbody"></tbody></table>
   </div>
 </div>
@@ -335,6 +335,7 @@ tr:last-child td{border-bottom:none;}
       <div class="mf"><label class="ml">Categoría</label><select class="ms" id="m-c"></select></div>
       <div class="mf"><label class="ml">Precio Bs.</label><input class="mi" id="m-p" type="number" placeholder="0" min="0"></div>
     </div>
+    <div class="mf"><label class="ml">Opciones (separadas por coma)</label><input class="mi" id="m-opc" type="text" placeholder="ej: Pan integral, Pan normal"></div>
     <div class="mactions">
       <button class="m-cancel" onclick="cerrarModal()">Cancelar</button>
       <button class="m-ok" onclick="guardarNuevo()">Agregar</button>
@@ -344,6 +345,16 @@ tr:last-child td{border-bottom:none;}
 
 
 <link rel="manifest" href="data:application/json,{%22name%22:%22El Viejo Rubio%22,%22short_name%22:%22EVR%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230D0A07%22,%22theme_color%22:%22%23C8922A%22}">
+<!-- OPCIONES MODAL -->
+<div id="opciones-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#1a1208;border:2px solid #C8922A;border-radius:8px;padding:24px;width:100%;max-width:360px;">
+    <div id="opc-titulo" style="font-family:'Georgia',serif;color:#E8B84B;font-size:1.2rem;font-weight:bold;margin-bottom:6px;"></div>
+    <div style="font-size:.65rem;letter-spacing:3px;color:#888;text-transform:uppercase;margin-bottom:14px;">Selecciona una opcion</div>
+    <div id="opc-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    <button onclick="cerrarOpciones()" style="width:100%;padding:10px;background:transparent;border:1px solid #444;color:#aaa;border-radius:4px;cursor:pointer;font-size:.9rem;">Cancelar</button>
+  </div>
+</div>
+
 <!-- PIN MODAL -->
 <div id="pin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#1a1208;border:2px solid #C8922A;border-radius:8px;padding:24px;width:100%;max-width:320px;text-align:center;">
@@ -608,9 +619,46 @@ function renderProds(){
   });
 }
 function addItem(p){
-  var ex=null; pedido.forEach(function(i){if(i.id===p.id) ex=i;});
-  if(ex) ex.cant++; else pedido.push({id:p.id,e:p.e,n:p.n,p:p.p,cant:1});
-  renderPed(); syncPed();
+  if(p.opciones && p.opciones.trim()){
+    // Mostrar modal de opciones
+    mostrarOpciones(p);
+  } else {
+    var ex=null; pedido.forEach(function(i){if(i.id===p.id && !i.opcion) ex=i;});
+    if(ex) ex.cant++; else pedido.push({id:p.id,e:p.e,n:p.n,p:p.p,cant:1});
+    renderPed(); syncPed();
+  }
+}
+
+function mostrarOpciones(p){
+  var modal=document.getElementById("opciones-modal");
+  var titulo=document.getElementById("opc-titulo");
+  var lista=document.getElementById("opc-lista");
+  if(!modal||!titulo||!lista) return;
+  titulo.textContent=p.e+" "+p.n+" - Bs."+p.p;
+  lista.innerHTML="";
+  var opts=p.opciones.split(",").map(function(o){return o.trim();}).filter(function(o){return o;});
+  opts.forEach(function(opt){
+    var btn=document.createElement("button");
+    btn.style.cssText="width:100%;padding:12px;background:#1a1208;border:1.5px solid rgba(200,146,42,.3);border-radius:6px;color:#F2E8D5;font-size:1rem;cursor:pointer;text-align:left;";
+    btn.textContent=opt;
+    btn.onclick=function(){
+      // Agregar con opcion seleccionada
+      var nombreConOpc=p.n+" ("+opt+")";
+      var ex=null;
+      pedido.forEach(function(i){if(i.id===p.id && i.opcion===opt) ex=i;});
+      if(ex) ex.cant++;
+      else pedido.push({id:p.id,e:p.e,n:nombreConOpc,p:p.p,cant:1,opcion:opt});
+      renderPed(); syncPed();
+      cerrarOpciones();
+    };
+    lista.appendChild(btn);
+  });
+  modal.style.display="flex";
+}
+
+function cerrarOpciones(){
+  var modal=document.getElementById("opciones-modal");
+  if(modal) modal.style.display="none";
 }
 function chg(id,d){
   var i=pedido.findIndex(function(x){return x.id===id;});
@@ -1092,7 +1140,8 @@ function renderAdmin(){
 }
 function saveProd(id){
   var e=document.getElementById("ee-"+id),n=document.getElementById("en-"+id),c=document.getElementById("ec-"+id),p=document.getElementById("ep-"+id);
-  var upd={e:e?e.value:"\u2615",n:n?n.value:"",c:c?c.value:"Cafes",p:p?parseFloat(p.value)||0:0};
+  var opc=document.getElementById("eo-"+id);
+  var upd={e:e?e.value:"\u2615",n:n?n.value:"",c:c?c.value:"Cafes",p:p?parseFloat(p.value)||0:0,opciones:opc?opc.value.trim():""};
   db.collection("menu").doc("prod_"+id).update(upd).then(function(){
     for(var i=0;i<menuCache.length;i++){if(menuCache[i].id===id){for(var k in upd) menuCache[i][k]=upd[k];break;}}
     notif("Producto actualizado");
@@ -1114,10 +1163,11 @@ function guardarNuevo(){
   var n=document.getElementById("m-n").value.trim();
   var c=document.getElementById("m-c").value;
   var p=parseFloat(document.getElementById("m-p").value)||0;
+  var opc=document.getElementById("m-opc"); var opcVal=opc?opc.value.trim():"";
   if(!n){document.getElementById("m-n").focus();return;}
   if(!p){document.getElementById("m-p").focus();return;}
   var maxId=0;getMenu().forEach(function(x){if(x.id>maxId) maxId=x.id;});
-  var np={id:maxId+1,e:e,n:n,c:c,p:p};
+  var np={id:maxId+1,e:e,n:n,c:c,p:p,opciones:opcVal};
   db.collection("menu").doc("prod_"+(maxId+1)).set(np).then(function(){
     menuCache.push(np);cerrarModal();notif(n+" agregado");renderAdmin();
   });
@@ -1352,7 +1402,7 @@ function sincronizarTodo(){
 }
 
 function getPIN(){
-  try{ return localStorage.getItem('evr_pin')||""; }catch(e){ return ""; }
+  return pinCache;
 }
 
 function pedirPIN(){
@@ -1405,15 +1455,19 @@ function cambiarPIN(){
     notif("No hay PIN configurado, deja PIN actual vacio"); return;
   }
 
-  try{
-    if(nuevo){
-      localStorage.setItem('evr_pin', nuevo);
-      notif("Contrasena actualizada correctamente");
-    } else {
-      localStorage.removeItem('evr_pin');
-      notif("Contrasena eliminada - acceso libre");
-    }
-  }catch(e){ notif("Error al guardar"); }
+  var nuevoPin = nuevo || "";
+  // Guardar en Firebase para sincronizar todos los dispositivos
+  db.collection("configuracion").doc("pin").set({valor: nuevoPin}).then(function(){
+    pinCache = nuevoPin;
+    try{
+      if(nuevoPin) localStorage.setItem('evr_pin', nuevoPin);
+      else localStorage.removeItem('evr_pin');
+    }catch(e){}
+    if(nuevoPin) notif("Contrasena actualizada en todos los dispositivos");
+    else notif("Contrasena eliminada - acceso libre");
+  }).catch(function(){
+    notif("Error al guardar - verifica internet");
+  });
 
   document.getElementById("pin-actual").value="";
   document.getElementById("pin-nuevo").value="";
