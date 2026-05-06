@@ -318,7 +318,7 @@ tr:last-child td{border-bottom:none;}
       <button onclick="sincronizarCats()" style="padding:5px 12px;background:rgba(45,106,79,.2);border:1px solid rgba(45,106,79,.4);color:#A7F3D0;border-radius:3px;font-size:.72rem;cursor:pointer;margin-right:6px;">&#x21BB; Sincronizar Cats</button>
       <button onclick="resetMenuFirebase()" style="padding:5px 12px;background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);color:#F1948A;border-radius:3px;font-size:.72rem;cursor:pointer;">&#x21BA; Resetear Menu</button>
     </div>
-    <table><thead><tr><th>Icono</th><th>Producto</th><th>Cat.</th><th>Bs.</th><th>Opciones</th><th></th></tr></thead>
+    <table><thead><tr><th>Icono</th><th>Producto</th><th>Cat.</th><th>Bs.</th><th></th></tr></thead>
     <tbody id="atbody"></tbody></table>
   </div>
 </div>
@@ -352,6 +352,32 @@ tr:last-child td{border-bottom:none;}
     <div style="font-size:.65rem;letter-spacing:3px;color:#888;text-transform:uppercase;margin-bottom:14px;">Selecciona una opcion</div>
     <div id="opc-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
     <button onclick="cerrarOpciones()" style="width:100%;padding:10px;background:transparent;border:1px solid #444;color:#aaa;border-radius:4px;cursor:pointer;font-size:.9rem;">Cancelar</button>
+  </div>
+</div>
+
+<!-- EDITAR PRODUCTO MODAL -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#1a1208;border:2px solid #C8922A;border-radius:8px;padding:24px;width:100%;max-width:400px;">
+    <h3 style="color:#E8B84B;margin-bottom:16px;font-family:Georgia,serif;">Editar Producto</h3>
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <div style="flex:0 0 80px;"><label style="font-size:.6rem;letter-spacing:2px;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Icono</label>
+        <input class="mi" id="edit-e" type="text" maxlength="4" style="text-align:center;font-size:1.4rem;width:100%;padding:8px;background:#0d0a07;border:1px solid #444;border-radius:4px;color:#F2E8D5;outline:none;"></div>
+      <div style="flex:1;"><label style="font-size:.6rem;letter-spacing:2px;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Nombre</label>
+        <input class="mi" id="edit-n" type="text" style="width:100%;padding:8px;background:#0d0a07;border:1px solid #444;border-radius:4px;color:#F2E8D5;outline:none;font-size:.9rem;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <div style="flex:1;"><label style="font-size:.6rem;letter-spacing:2px;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Categoria</label>
+        <select id="edit-c" style="width:100%;padding:8px;background:#0d0a07;border:1px solid #444;border-radius:4px;color:#F2E8D5;outline:none;font-size:.85rem;"></select></div>
+      <div style="flex:0 0 90px;"><label style="font-size:.6rem;letter-spacing:2px;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Precio Bs.</label>
+        <input class="mi" id="edit-p" type="number" min="0" style="width:100%;padding:8px;background:#0d0a07;border:1px solid #444;border-radius:4px;color:#F2E8D5;outline:none;font-size:.9rem;text-align:right;"></div>
+    </div>
+    <div style="margin-bottom:16px;"><label style="font-size:.6rem;letter-spacing:2px;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Opciones (separadas por coma)</label>
+      <input class="mi" id="edit-opc" type="text" placeholder="ej: Pan integral, Pan normal" style="width:100%;padding:8px;background:#0d0a07;border:1px solid #444;border-radius:4px;color:#F2E8D5;outline:none;font-size:.85rem;"></div>
+    <input type="hidden" id="edit-id">
+    <div style="display:flex;gap:10px;">
+      <button onclick="cerrarModalEditar()" style="flex:1;padding:11px;background:transparent;border:1px solid #444;color:#aaa;border-radius:4px;cursor:pointer;">Cancelar</button>
+      <button onclick="guardarEdicion()" style="flex:2;padding:11px;background:#C8922A;color:#111;border:none;border-radius:4px;font-weight:bold;cursor:pointer;">Guardar Cambios</button>
+    </div>
   </div>
 </div>
 
@@ -1121,20 +1147,33 @@ function initAdmin(){
 function renderAdmin(){
   var tbody=document.getElementById("atbody");if(!tbody) return;
   tbody.innerHTML="";
-  var cats=catsCache.length ? catsCache : ["Cafe","Te","Jugos","Algo Dulce","Para el Hambre","Desayuno"];
   getMenu().forEach(function(p){
     var tr=document.createElement("tr");
-    var te=document.createElement("td");var ie=document.createElement("input");ie.className="edit-inp";ie.style.width="55px";ie.style.textAlign="center";ie.value=p.e;ie.id="ee-"+p.id;te.appendChild(ie);
-    var tn=document.createElement("td");var inn=document.createElement("input");inn.className="edit-inp";inn.style.minWidth="110px";inn.value=p.n;inn.id="en-"+p.id;tn.appendChild(inn);
-    var tc=document.createElement("td");var sel=document.createElement("select");sel.className="edit-sel";sel.id="ec-"+p.id;
-    cats.forEach(function(c){var o=document.createElement("option");o.value=c;o.textContent=c;if(c===p.c)o.selected=true;sel.appendChild(o);});tc.appendChild(sel);
-    var tp=document.createElement("td");var ip=document.createElement("input");ip.className="edit-inp";ip.style.width="60px";ip.style.textAlign="right";ip.type="number";ip.value=p.p;ip.id="ep-"+p.id;tp.appendChild(ip);
-    var ta=document.createElement("td");ta.style.whiteSpace="nowrap";
-    var bs=document.createElement("button");bs.className="btn-save";bs.textContent="Guardar";
-    (function(id){bs.onclick=function(){saveProd(id);};})(p.id);
+    // Emoji
+    var te=document.createElement("td");
+    te.style.cssText="font-size:1.4rem;text-align:center;padding:8px 6px;";
+    te.textContent=p.e;
+    // Nombre
+    var tn=document.createElement("td");
+    tn.style.cssText="font-size:.85rem;font-weight:bold;color:#F2E8D5;padding:8px 6px;";
+    tn.textContent=p.n;
+    // Categoria
+    var tc=document.createElement("td");
+    tc.style.cssText="font-size:.75rem;color:#C8922A;padding:8px 6px;";
+    tc.textContent=p.c;
+    // Precio
+    var tp=document.createElement("td");
+    tp.style.cssText="font-size:.9rem;font-weight:bold;color:#E8B84B;padding:8px 6px;text-align:right;";
+    tp.textContent="Bs."+p.p;
+    // Acciones
+    var ta=document.createElement("td");ta.style.cssText="padding:6px;white-space:nowrap;text-align:right;";
+    var bedit=document.createElement("button");
+    bedit.style.cssText="padding:6px 10px;background:rgba(52,152,219,.2);border:1px solid rgba(52,152,219,.4);color:#5DADE2;border-radius:4px;cursor:pointer;font-size:.85rem;margin-right:4px;";
+    bedit.textContent="\u270F\uFE0F";
+    (function(prod){bedit.onclick=function(){abrirModalEditar(prod);};})(p);
     var bd=document.createElement("button");bd.className="btn-del";bd.textContent="X";
     (function(id,n){bd.onclick=function(){delProd(id,n);};})(p.id,p.n);
-    ta.appendChild(bs);ta.appendChild(bd);
+    ta.appendChild(bedit);ta.appendChild(bd);
     tr.appendChild(te);tr.appendChild(tn);tr.appendChild(tc);tr.appendChild(tp);tr.appendChild(ta);
     tbody.appendChild(tr);
   });
@@ -1541,6 +1580,41 @@ function eliminarCategoria(cat){
   db.collection("configuracion").doc("categorias").set({lista:catsCache});
   renderCatsAdmin();
   notif("Categoria eliminada");
+}
+
+function abrirModalEditar(p){
+  document.getElementById("edit-id").value = p.id;
+  document.getElementById("edit-e").value = p.e||"\u2615";
+  document.getElementById("edit-n").value = p.n||"";
+  document.getElementById("edit-p").value = p.p||0;
+  document.getElementById("edit-opc").value = p.opciones||"";
+  // Populate category select
+  var sel=document.getElementById("edit-c");
+  sel.innerHTML="";
+  var cats=catsCache.length?catsCache:["Cafe","Te","Jugos","Algo Dulce","Para el Hambre","Desayuno"];
+  cats.forEach(function(c){var o=document.createElement("option");o.value=c;o.textContent=c;if(c===p.c)o.selected=true;sel.appendChild(o);});
+  document.getElementById("edit-modal").style.display="flex";
+}
+function cerrarModalEditar(){
+  document.getElementById("edit-modal").style.display="none";
+}
+function guardarEdicion(){
+  var id=parseInt(document.getElementById("edit-id").value);
+  var e=document.getElementById("edit-e").value||"\u2615";
+  var n=document.getElementById("edit-n").value.trim();
+  var c=document.getElementById("edit-c").value;
+  var p=parseFloat(document.getElementById("edit-p").value)||0;
+  var opc=document.getElementById("edit-opc").value.trim();
+  if(!n){document.getElementById("edit-n").focus();return;}
+  if(!p){document.getElementById("edit-p").focus();return;}
+  var upd={e:e,n:n,c:c,p:p,opciones:opc};
+  db.collection("menu").doc("prod_"+id).update(upd).then(function(){
+    for(var i=0;i<menuCache.length;i++){if(menuCache[i].id===id){for(var k in upd)menuCache[i][k]=upd[k];break;}}
+    try{localStorage.setItem('evr_menu',JSON.stringify(menuCache));}catch(ex){}
+    cerrarModalEditar();
+    notif(n+" actualizado");
+    renderAdmin();
+  }).catch(function(e){ notif("Error: "+e.message); });
 }
 
 function sincronizarCats(){
