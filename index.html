@@ -31,8 +31,10 @@ input[type=text],input[type=number]{width:100%;padding:6px 8px;background:#1a120
 .cbt{padding:4px 12px;border:1px solid #444;background:transparent;color:#aaa;border-radius:3px;font-size:.72rem;cursor:pointer;}
 .cbt.on{background:#C8922A;border-color:#C8922A;color:#111;font-weight:bold;}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;max-height:55vh;overflow-y:auto;}
-.pc{background:#1a1208;border:1px solid #333;border-radius:4px;padding:8px 4px;text-align:center;cursor:pointer;}
+.pc{background:#1a1208;border:1px solid #333;border-radius:4px;padding:8px 4px;text-align:center;cursor:grab;position:relative;transition:opacity .2s,transform .2s;}
 .pc:active{border-color:#C8922A;background:#2a2208;}
+.pc.dragging{opacity:.4;transform:scale(.95);cursor:grabbing;}
+.pc.drag-over{border:2px dashed #C8922A;background:rgba(200,146,42,.1);}
 .pc-e{font-size:1.3rem;margin-bottom:3px;}
 .pc-n{font-size:.62rem;font-weight:bold;color:#F2E8D5;margin-bottom:2px;text-transform:uppercase;line-height:1.2;}
 .pc-p{font-size:.8rem;color:#E8B84B;font-weight:bold;}
@@ -635,16 +637,128 @@ function renderProds(){
   var m=getMenu().filter(function(p){return(catAct==="Todos"||p.c===catAct)&&(!bus||p.n.toLowerCase().indexOf(bus)!==-1);});
   var cont=document.getElementById("pgrid"); if(!cont) return;
   cont.innerHTML="";
+  // Sort by orden field if available
+  m.sort(function(a,b){ return (a.orden||a.id) - (b.orden||b.id); });
+  
   m.forEach(function(p){
     var d=document.createElement("div"); d.className="pc";
+    d.setAttribute("data-id", p.id);
+    d.setAttribute("draggable", "true");
     var e=document.createElement("div"); e.className="pc-e"; e.textContent=p.e;
     var n=document.createElement("div"); n.className="pc-n"; n.textContent=p.n;
     var pr=document.createElement("div"); pr.className="pc-p"; pr.textContent="Bs."+p.p;
     d.appendChild(e);d.appendChild(n);d.appendChild(pr);
-    d.onclick=function(){addItem(p);};
+    
+    // Click to add
+    var clickTimer=null;
+    d.addEventListener("click", function(ev){
+      if(d.classList.contains("dragging")) return;
+      addItem(p);
+    });
+    
+    // Drag events (desktop)
+    d.addEventListener("dragstart", function(ev){
+      ev.dataTransfer.setData("text/plain", p.id);
+      ev.dataTransfer.effectAllowed="move";
+      setTimeout(function(){d.classList.add("dragging");},0);
+    });
+    d.addEventListener("dragend", function(){
+      d.classList.remove("dragging");
+      document.querySelectorAll(".pc").forEach(function(el){el.classList.remove("drag-over");});
+    });
+    d.addEventListener("dragover", function(ev){
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect="move";
+      document.querySelectorAll(".pc").forEach(function(el){el.classList.remove("drag-over");});
+      d.classList.add("drag-over");
+    });
+    d.addEventListener("drop", function(ev){
+      ev.preventDefault();
+      var fromId=parseInt(ev.dataTransfer.getData("text/plain"));
+      var toId=p.id;
+      if(fromId!==toId) reordenarProductos(fromId, toId);
+      d.classList.remove("drag-over");
+    });
+    
+    // Touch events (mobile)
+    var touchStartX,touchStartY,touchClone=null,touchSrc=null;
+    d.addEventListener("touchstart", function(ev){
+      touchSrc=d;
+      var touch=ev.touches[0];
+      touchStartX=touch.clientX; touchStartY=touch.clientY;
+    },{passive:true});
+    d.addEventListener("touchmove", function(ev){
+      var touch=ev.touches[0];
+      var dx=Math.abs(touch.clientX-touchStartX);
+      var dy=Math.abs(touch.clientY-touchStartY);
+      if(dx>10||dy>10) ev.preventDefault(); // Only prevent if dragging
+    },{passive:false});
+    d.addEventListener("touchend", function(ev){
+      var touch=ev.changedTouches[0];
+      var dx=Math.abs(touch.clientX-touchStartX);
+      var dy=Math.abs(touch.clientY-touchStartY);
+      if(dx<10&&dy<10){
+        // It was a tap, not drag
+        addItem(p);
+        return;
+      }
+      // Find element under touch point
+      var el=document.elementFromPoint(touch.clientX, touch.clientY);
+      var target=el?el.closest(".pc"):null;
+      if(target && target!==d){
+        var toId=parseInt(target.getAttribute("data-id"));
+        if(toId && toId!==p.id) reordenarProductos(p.id, toId);
+      }
+    });
+    
     cont.appendChild(d);
   });
 }
+function reordenarProductos(fromId, toId){
+  var menu = getMenu();
+  // Find items
+  var fromItem=null, toItem=null;
+  var fromIdx=-1, toIdx=-1;
+  menu.forEach(function(p,i){
+    if(p.id===fromId){fromItem=p;fromIdx=i;}
+    if(p.id===toId){toItem=p;toIdx=i;}
+  });
+  if(!fromItem||!toItem) return;
+  // Only reorder within same category
+  if(fromItem.c!==toItem.c){
+    notif("Solo se puede reordenar dentro de la misma categoria");
+    return;
+  }
+  // Assign orden values based on current positions
+  var catItems = menu.filter(function(p){return p.c===fromItem.c;});
+  catItems.sort(function(a,b){return (a.orden||a.id)-(b.orden||b.id);});
+  
+  // Find positions in category
+  var fromCatIdx=catItems.findIndex(function(p){return p.id===fromId;});
+  var toCatIdx=catItems.findIndex(function(p){return p.id===toId;});
+  
+  // Reorder array
+  var item=catItems.splice(fromCatIdx,1)[0];
+  catItems.splice(toCatIdx,0,item);
+  
+  // Assign new orden values and save to Firebase
+  var batch=db.batch();
+  catItems.forEach(function(p,i){
+    var newOrden=(toCatIdx<fromCatIdx?toItem.orden||toId:fromItem.orden||fromId)+i;
+    // Simple: use index*10 + category offset
+    var offset=0;
+    var cats=["Cafe","Te","Jugos","Algo Dulce","Para el Hambre","Desayuno"];
+    cats.forEach(function(c,ci){if(c===p.c)offset=ci*1000;});
+    p.orden=offset+(i+1)*10;
+    batch.update(db.collection("menu").doc("prod_"+p.id),{orden:p.orden});
+  });
+  batch.commit().then(function(){
+    try{localStorage.setItem('evr_menu',JSON.stringify(menuCache));}catch(e){}
+    renderProds();
+    notif("Orden actualizado");
+  }).catch(function(e){notif("Error: "+e.message);});
+}
+
 function addItem(p){
   if(p.opciones && p.opciones.trim()){
     // Mostrar modal de opciones
