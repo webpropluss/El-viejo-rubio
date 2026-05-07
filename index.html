@@ -649,10 +649,10 @@ function renderProds(){
     var pr=document.createElement("div"); pr.className="pc-p"; pr.textContent="Bs."+p.p;
     d.appendChild(e);d.appendChild(n);d.appendChild(pr);
     
-    // Click to add
-    var clickTimer=null;
+    // Click to add (desktop only - touchend handles mobile)
     d.addEventListener("click", function(ev){
       if(d.classList.contains("dragging")) return;
+      if(ev._fromTouch) return; // Skip if already handled by touchend
       addItem(p);
     });
     
@@ -698,11 +698,12 @@ function renderProds(){
       var dx=Math.abs(touch.clientX-touchStartX);
       var dy=Math.abs(touch.clientY-touchStartY);
       if(dx<10&&dy<10){
-        // It was a tap, not drag
+        // It was a tap - prevent the click event from also firing
+        ev.preventDefault();
         addItem(p);
         return;
       }
-      // Find element under touch point
+      // It was a drag - find element under touch point
       var el=document.elementFromPoint(touch.clientX, touch.clientY);
       var target=el?el.closest(".pc"):null;
       if(target && target!==d){
