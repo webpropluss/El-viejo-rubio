@@ -97,7 +97,7 @@ input[type=text],input[type=number]{width:100%;padding:6px 8px;background:#1a120
 .btn-csv,.btn-pdf{padding:5px 13px;border:none;border-radius:3px;font-size:.72rem;font-weight:bold;cursor:pointer;}
 .btn-csv{background:#C8922A;color:#111;}
 .btn-pdf{background:#c0392b;color:#ffd;}
-table{width:100%;border-collapse:collapse;}
+table{width:100%;border-collapse:collapse;min-width:420px;}
 th{padding:10px 14px;text-align:left;font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:#555;border-bottom:1px solid #222;}
 td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid #1a1a1a;}
 tr:last-child td{border-bottom:none;}
@@ -252,13 +252,13 @@ tr:last-child td{border-bottom:none;}
     <div class="kpi"><div class="kpi-l">Más vendido</div><div class="kpi-v" id="ktop" style="font-size:1rem;">--</div><div class="kpi-s" id="ktops">0 uds.</div></div>
   </div>
   <button class="btn-admin" onclick="ir('pg-admin',initAdmin)">&#x2630; Administrar Menú</button>
-  <div class="hist">
+  <div class="hist" style="overflow-x:auto;">
     <div class="hist-top">
       <span class="hist-top-t">Historial</span>
       <div class="filtros">
-        <button class="fb" onclick="filtro('hoy',this)">Hoy</button>
+        <button class="fb on" onclick="filtro('hoy',this)">Hoy</button>
         <button class="fb" onclick="filtro('sem',this)">Semana</button>
-        <button class="fb on" onclick="filtro('mes',this)">Mes</button>
+        <button class="fb" onclick="filtro('mes',this)">Mes</button>
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn-csv" onclick="expExcel()">Excel</button>
@@ -879,10 +879,9 @@ function limpiar(){
 }
 function cobrar(){
   if(!pedido.length){notif("El pedido esta vacio");return;}
-  // Bloquear inmediatamente para evitar doble click
   var btnC=document.getElementById("btn-cobrar-main");
   if(btnC){
-    if(btnC.disabled) return; // Ya fue clickeado
+    if(btnC.disabled) return;
     btnC.disabled=true;
     btnC.style.background="#555";
     btnC.style.color="#aaa";
@@ -890,82 +889,66 @@ function cobrar(){
   }
   var total=0; pedido.forEach(function(i){total+=i.p*i.cant;});
   var cli=document.getElementById("cli-inp"); var c=cli?cli.value:"Sin nombre";
-  var ahora = new Date();
-  var hoy7am = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 7, 0, 0).getTime();
-  if(ahora.getHours() < 7) hoy7am -= 24*60*60*1000;
+  var ahora=new Date();
+  var hoy7am=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate(),7,0,0).getTime();
+  if(ahora.getHours()<7) hoy7am-=24*60*60*1000;
+  var numLocal=parseInt(localStorage.getItem('evr_contador')||'0')+1;
 
-  // Obtener numero local
-  var numLocal = parseInt(localStorage.getItem('evr_contador')||'0') + 1;
-
-  // Si no hay internet, procesar localmente de inmediato
-  if(!navigator.onLine){
-    while(offlineQueue.some(function(r){ return r.num === numLocal; })) numLocal++;
-    localStorage.setItem('evr_contador', numLocal);
-    var regOff={num:numLocal,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now(),offline:true};
-    offlineQueue.push(regOff); saveQueue();
-    lastNumPedido = numLocal;
-    lastCobradoData = regOff;
-    yaImpreso = false;
-    var btnCoff=document.getElementById("btn-cobrar-main");
-    if(btnCoff){btnCoff.disabled=true;btnCoff.style.background="#2D6A4F";btnCoff.style.color="#A7F3D0";btnCoff.innerHTML="Cobrado #"+numLocal+" \u2713";}
-    var btnAoff=document.getElementById("btn-anular");
-    if(btnAoff) btnAoff.style.display="block";
-    notif("Pedido #"+numLocal+" guardado sin internet");
-    return;
+  function guardarOnline(num){
+    localStorage.setItem('evr_contador', num);
+    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now()};
+    db.collection("historial").add(reg).catch(function(){offlineQueue.push(reg);saveQueue();});
+    db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
+    lastNumPedido=num; lastCobradoData=reg; yaImpreso=false;
+    var b=document.getElementById("btn-cobrar-main");
+    if(b){b.disabled=true;b.style.background="#2D6A4F";b.style.color="#A7F3D0";b.innerHTML="Cobrado #"+num+" \u2713";}
+    var ba=document.getElementById("btn-anular"); if(ba) ba.style.display="block";
+    notif("Pedido #"+num+" cobrado - Bs."+total+" | Ahora imprime el ticket");
   }
 
-  // CON INTERNET: sincronizar cola offline primero si hay pendientes
-  if(offlineQueue.length > 0){
-    notif("Sincronizando " + offlineQueue.length + " pedido(s) offline primero...");
-    syncQueue();
-    setTimeout(cobrar, 2500);
-    return;
+  function guardarOffline(num){
+    while(offlineQueue.some(function(r){return r.num===num;})) num++;
+    localStorage.setItem('evr_contador', num);
+    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now(),offline:true};
+    offlineQueue.push(reg); saveQueue();
+    lastNumPedido=num; lastCobradoData=reg; yaImpreso=false;
+    var b=document.getElementById("btn-cobrar-main");
+    if(b){b.disabled=true;b.style.background="#2D6A4F";b.style.color="#A7F3D0";b.innerHTML="Cobrado #"+num+" \u2713";}
+    var ba=document.getElementById("btn-anular"); if(ba) ba.style.display="block";
+    notif("Pedido #"+num+" guardado sin internet - se sincronizara al reconectar");
   }
 
-  // Transaccion atomica Firebase
-  var localCounter = parseInt(localStorage.getItem('evr_contador')||'0');
-  var contRef = db.collection("configuracion").doc("contador");
+  // Sincronizar cola offline si hay pendientes
+  if(offlineQueue.length>0) syncQueue();
+
+  // Intentar Firebase con timeout de 5 segundos
+  var done=false;
+  var timer=setTimeout(function(){
+    if(done) return;
+    done=true;
+    guardarOffline(numLocal);
+  }, 5000);
+
+  var localCounter=parseInt(localStorage.getItem('evr_contador')||'0');
   db.runTransaction(function(t){
-    return t.get(contRef).then(function(doc){
-      var ultimo7am = doc.exists ? (doc.data().ultimo7am||0) : 0;
-      var n = doc.exists ? (doc.data().n||0) : 0;
-      var num = (ultimo7am < hoy7am) ? 1 : n+1;
-      var nuevo7am = (ultimo7am < hoy7am) ? hoy7am : ultimo7am;
-      t.set(contRef, {n:num, ultimo7am:nuevo7am});
+    return t.get(db.collection("configuracion").doc("contador")).then(function(doc){
+      var u7=doc.exists?(doc.data().ultimo7am||0):0;
+      var n=doc.exists?(doc.data().n||0):0;
+      var baseN=Math.max(n,localCounter);
+      var num=(u7<hoy7am)?1:baseN+1;
+      t.set(db.collection("configuracion").doc("contador"),{n:num,ultimo7am:(u7<hoy7am)?hoy7am:u7});
       return num;
     });
   }).then(function(num){
-    clearTimeout(offlineTimer);
-    if(cobradoOffline || num === null) return; // Already processed offline
-    cobradoOffline = true;
-    localStorage.setItem('evr_contador', num);
-    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now()};
-    db.collection("historial").add(reg).catch(function(){
-      offlineQueue.push(reg); saveQueue();
-      notif("Sin internet - pedido guardado localmente");
-    });
-    db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
-    lastNumPedido = num;
-    lastCobradoData = reg;
-    yaImpreso = false;
-    var btnC=document.getElementById("btn-cobrar-main");
-    if(btnC){btnC.disabled=true;btnC.style.background="#2D6A4F";btnC.style.color="#A7F3D0";btnC.innerHTML="Cobrado #"+num+" \u2713";}
-    var btnA=document.getElementById("btn-anular");
-    if(btnA) btnA.style.display="block";
-    notif("Pedido #"+num+" cobrado - Bs."+total+" | Ahora imprime el ticket");
+    if(done) return;
+    done=true;
+    clearTimeout(timer);
+    guardarOnline(num);
   }).catch(function(){
-    // Sin internet - usar contador local
-    localStorage.setItem('evr_contador', numLocal);
-    var reg={num:numLocal,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now(),offline:true};
-    offlineQueue.push(reg); saveQueue();
-    lastNumPedido = numLocal;
-    lastCobradoData = reg;
-    yaImpreso = false;
-    var btnC = document.getElementById("btn-cobrar-main");
-    if(btnC){ btnC.disabled=true; btnC.style.background="#2D6A4F"; btnC.style.color="#A7F3D0"; btnC.innerHTML="Cobrado #"+numLocal+" \u2713"; }
-    var btnA = document.getElementById("btn-anular");
-    if(btnA) btnA.style.display="block";
-    notif("Pedido #"+numLocal+" guardado sin internet - se sincronizara despues");
+    if(done) return;
+    done=true;
+    clearTimeout(timer);
+    guardarOffline(numLocal);
   });
 }
 
@@ -1112,8 +1095,8 @@ function renderCk(){
 
 // GESTION
 function initGestion(){
-  var hoy=new Date(),pr=new Date(hoy.getFullYear(),hoy.getMonth(),1);
-  document.getElementById("f-desde").value=fechaLocal(pr);
+  var hoy=new Date();
+  document.getElementById("f-desde").value=fechaLocal(hoy);
   document.getElementById("f-hasta").value=fechaLocal(hoy);
   // Mostrar pedidos offline pendientes
   var badge=document.getElementById("offline-badge");
@@ -1303,7 +1286,7 @@ function expPDF(){
     filas+='<tr style="background:'+bg+'"><td style="padding:8px;color:#E8B84B;">#'+(h.num||"")+'</td><td style="padding:8px;color:#F2E8D5;">'+f.toLocaleDateString("es-BO")+" "+f.toLocaleTimeString("es-BO",{hour:"2-digit",minute:"2-digit"})+'</td><td style="padding:8px;color:#F2E8D5;">'+(h.cliente||"\u2014")+'</td><td style="padding:8px;color:#aaa;font-size:11px;">'+items+'</td><td style="padding:8px;color:#E8B84B;font-weight:bold;text-align:right;">Bs. '+h.total+'</td></tr>';
   });
   var w=window.open("","_blank");
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>El Viejo Rubio</title><style>body{margin:0;padding:20px;background:#0D0A07;font-family:Georgia,serif;color:#F2E8D5;}h1{color:#E8B84B;}h2{color:#C8922A;font-size:12px;letter-spacing:3px;}.kpis{display:flex;gap:12px;margin:16px 0;}.k{background:#1a1208;border:1px solid rgba(200,146,42,.3);border-radius:4px;padding:12px;flex:1;}.kl{font-size:10px;letter-spacing:2px;color:#C8922A;text-transform:uppercase;margin-bottom:4px;}.kv{font-size:18px;font-weight:bold;color:#E8B84B;}table{width:100%;border-collapse:collapse;}th{padding:8px;text-align:left;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C8922A;border-bottom:1px solid rgba(200,146,42,.3);}.ft{margin-top:20px;text-align:center;font-size:10px;color:#555;}</style></head><body><h1>El Viejo Rubio</h1><h2>SPECIALTY COFFEE - REPORTE DE VENTAS</h2><div class="kpis"><div class="k"><div class="kl">Periodo</div><div class="kv" style="font-size:12px;">'+per+'</div></div><div class="k"><div class="kl">Pedidos</div><div class="kv">'+hist.length+'</div></div><div class="k"><div class="kl">Ingresos</div><div class="kv">Bs. '+ti+'</div></div><div class="k"><div class="kl">Ticket prom.</div><div class="kv">Bs. '+(hist.length?Math.round(ti/hist.length):0)+'</div></div></div><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+filas+'</tbody></table><div class="ft">El Viejo Rubio - Specialty Coffee - '+new Date().toLocaleDateString("es-BO")+'</div></body></html>');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>El Viejo Rubio</title><style>body{margin:0;padding:20px;background:#0D0A07;font-family:Georgia,serif;color:#F2E8D5;}h1{color:#E8B84B;}h2{color:#C8922A;font-size:12px;letter-spacing:3px;}.kpis{display:flex;gap:12px;margin:16px 0;}.k{background:#1a1208;border:1px solid rgba(200,146,42,.3);border-radius:4px;padding:12px;flex:1;}.kl{font-size:10px;letter-spacing:2px;color:#C8922A;text-transform:uppercase;margin-bottom:4px;}.kv{font-size:18px;font-weight:bold;color:#E8B84B;}table{width:100%;border-collapse:collapse;min-width:420px;}th{padding:8px;text-align:left;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C8922A;border-bottom:1px solid rgba(200,146,42,.3);}.ft{margin-top:20px;text-align:center;font-size:10px;color:#555;}</style></head><body><h1>El Viejo Rubio</h1><h2>SPECIALTY COFFEE - REPORTE DE VENTAS</h2><div class="kpis"><div class="k"><div class="kl">Periodo</div><div class="kv" style="font-size:12px;">'+per+'</div></div><div class="k"><div class="kl">Pedidos</div><div class="kv">'+hist.length+'</div></div><div class="k"><div class="kl">Ingresos</div><div class="kv">Bs. '+ti+'</div></div><div class="k"><div class="kl">Ticket prom.</div><div class="kv">Bs. '+(hist.length?Math.round(ti/hist.length):0)+'</div></div></div><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+filas+'</tbody></table><div class="ft">El Viejo Rubio - Specialty Coffee - '+new Date().toLocaleDateString("es-BO")+'</div></body></html>');
   w.document.close();setTimeout(function(){w.print();},600);
 }
 
