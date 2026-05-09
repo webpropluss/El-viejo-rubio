@@ -935,6 +935,9 @@ function cobrar(){
       return num;
     });
   }).then(function(num){
+    clearTimeout(offlineTimer);
+    if(cobradoOffline || num === null) return; // Already processed offline
+    cobradoOffline = true;
     localStorage.setItem('evr_contador', num);
     var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now()};
     db.collection("historial").add(reg).catch(function(){
