@@ -894,10 +894,36 @@ function cobrar(){
   var hoy7am = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 7, 0, 0).getTime();
   if(ahora.getHours() < 7) hoy7am -= 24*60*60*1000;
 
-  // Obtener numero local si no hay internet
+  // Obtener numero local
   var numLocal = parseInt(localStorage.getItem('evr_contador')||'0') + 1;
-  
-  // Transaccion atomica - evita numeros duplicados entre dispositivos
+
+  // Si no hay internet, procesar localmente de inmediato
+  if(!navigator.onLine){
+    while(offlineQueue.some(function(r){ return r.num === numLocal; })) numLocal++;
+    localStorage.setItem('evr_contador', numLocal);
+    var regOff={num:numLocal,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now(),offline:true};
+    offlineQueue.push(regOff); saveQueue();
+    lastNumPedido = numLocal;
+    lastCobradoData = regOff;
+    yaImpreso = false;
+    var btnCoff=document.getElementById("btn-cobrar-main");
+    if(btnCoff){btnCoff.disabled=true;btnCoff.style.background="#2D6A4F";btnCoff.style.color="#A7F3D0";btnCoff.innerHTML="Cobrado #"+numLocal+" \u2713";}
+    var btnAoff=document.getElementById("btn-anular");
+    if(btnAoff) btnAoff.style.display="block";
+    notif("Pedido #"+numLocal+" guardado sin internet");
+    return;
+  }
+
+  // CON INTERNET: sincronizar cola offline primero si hay pendientes
+  if(offlineQueue.length > 0){
+    notif("Sincronizando " + offlineQueue.length + " pedido(s) offline primero...");
+    syncQueue();
+    setTimeout(cobrar, 2500);
+    return;
+  }
+
+  // Transaccion atomica Firebase
+  var localCounter = parseInt(localStorage.getItem('evr_contador')||'0');
   var contRef = db.collection("configuracion").doc("contador");
   db.runTransaction(function(t){
     return t.get(contRef).then(function(doc){
