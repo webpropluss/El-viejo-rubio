@@ -1122,33 +1122,43 @@ function initGestion(){
       badge.style.display="none";
     }
   }
+  // Mostrar pedidos offline INMEDIATAMENTE antes de esperar Firebase
+  if(offlineQueue.length > 0){
+    histCache = offlineQueue.slice();
+    histCache.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  }
   renderGestion();
+
+  // Luego cargar desde Firebase y combinar
   db.collection("historial").orderBy("ts","desc").onSnapshot(function(snap){
-    histCache=[];
-    snap.forEach(function(doc){histCache.push(doc.data());});
-    // Agregar pedidos offline al historial local para que se vean
+    var fbData=[];
+    snap.forEach(function(doc){fbData.push(doc.data());});
+    // Combinar Firebase + offline queue sin duplicados
+    histCache = fbData.slice();
     offlineQueue.forEach(function(reg){
       var yaEsta=histCache.some(function(h){return h.ts===reg.ts;});
       if(!yaEsta) histCache.push(reg);
     });
-    // Ordenar por timestamp descendente (mas reciente primero)
     histCache.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
     renderGestion();
-  }).catch(function(){
-    // Sin internet - mostrar solo offline queue
-    histCache = offlineQueue.slice();
-    histCache.sort(function(a,b){return b.ts-a.ts;});
-    renderGestion();
-    notif("Sin internet - mostrando pedidos locales");
+  }, function(error){
+    // Sin internet - ya mostramos offline arriba
+    if(offlineQueue.length === 0){
+      notif("Sin internet y sin pedidos locales");
+    }
   });
 }
 function getFiltHist(){
   var d=document.getElementById("f-desde").value;
   var h=document.getElementById("f-hasta").value;
+  // Always include offline queue items in histCache
+  offlineQueue.forEach(function(reg){
+    var yaEsta=histCache.some(function(h){return h.ts===reg.ts;});
+    if(!yaEsta) histCache.push(reg);
+  });
   return histCache.filter(function(x){
-    // Convertir fecha del registro a fecha local para comparar correctamente
-    var fechaLocal=fechaLocalFromISO(x.fecha);
-    return(!d||fechaLocal>=d)&&(!h||fechaLocal<=h);
+    var fl=fechaLocalFromISO(x.fecha);
+    return(!d||fl>=d)&&(!h||fl<=h);
   });
 }
 function fechaLocalFromISO(iso){
