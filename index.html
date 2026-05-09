@@ -395,7 +395,23 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
+firebase.initializeApp({
+  apiKey:"AIzaSyBo1mPFeGetXXqkJ1-DjUxBRsuLPIGpmqw",
+  authDomain:"el-viejo-rubio.firebaseapp.com",
+  projectId:"el-viejo-rubio",
+  storageBucket:"el-viejo-rubio.firebasestorage.app",
+  messagingSenderId:"770984014535",
+  appId:"1:770984014535:web:b2b0f65569672e293144e2"
+});
+var db = firebase.firestore();
+</script>
+
+<script>
+// SISTEMA OFFLINE - debe ir despues de que db este definido
 // SISTEMA OFFLINE - Cola de pedidos pendientes
 var offlineQueue = [];
 try { offlineQueue = JSON.parse(localStorage.getItem('evr_queue')||'[]'); } catch(e){}
@@ -477,19 +493,6 @@ window.addEventListener('load', function(){
   var cached = localStorage.getItem('evr_menu');
   if(cached) { try { var m=JSON.parse(cached); if(m&&m.length) window._cachedMenu=m; } catch(e){} }
 });
-</script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script>
-firebase.initializeApp({
-  apiKey:"AIzaSyBo1mPFeGetXXqkJ1-DjUxBRsuLPIGpmqw",
-  authDomain:"el-viejo-rubio.firebaseapp.com",
-  projectId:"el-viejo-rubio",
-  storageBucket:"el-viejo-rubio.firebasestorage.app",
-  messagingSenderId:"770984014535",
-  appId:"1:770984014535:web:b2b0f65569672e293144e2"
-});
-var db = firebase.firestore();
 </script>
 
 <script>
