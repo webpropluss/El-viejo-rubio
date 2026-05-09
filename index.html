@@ -409,38 +409,68 @@ function syncQueue(){
   var pendientes = offlineQueue.slice();
   offlineQueue = [];
   saveQueue();
-  // Verificar duplicados antes de subir
+
   db.collection("historial").orderBy("ts","desc").limit(50).get().then(function(snap){
     var numsEnFirebase = [];
     snap.forEach(function(doc){ numsEnFirebase.push(doc.data().num); });
+    
     var subidos = 0;
+    var maxNumSubido = 0;
+    var promesas = [];
+    
     pendientes.forEach(function(reg){
-      // Solo subir si el numero no existe ya en Firebase
       if(numsEnFirebase.indexOf(reg.num) === -1){
-        db.collection("historial").add(reg).catch(function(){
-          offlineQueue.push(reg); saveQueue();
-        });
-        db.collection("cola_cocina").add({
-          num:reg.num, fecha:reg.fecha, cliente:reg.cliente,
-          items:reg.items, total:reg.total, tipo:reg.tipo,
-          estado:"pendiente", timestamp:reg.ts
-        }).catch(function(){});
+        promesas.push(
+          db.collection("historial").add(reg).then(function(){
+            return db.collection("cola_cocina").add({
+              num:reg.num, fecha:reg.fecha, cliente:reg.cliente,
+              items:reg.items, total:reg.total, tipo:reg.tipo,
+              estado:"pendiente", timestamp:reg.ts
+            });
+          }).catch(function(){
+            offlineQueue.push(reg); saveQueue();
+          })
+        );
+        if(reg.num > maxNumSubido) maxNumSubido = reg.num;
         subidos++;
       }
     });
-    if(subidos) notif(subidos + " pedidos sincronizados con la nube");
-    else if(pendientes.length) notif("Pedidos ya estaban sincronizados");
+
+    // After all uploads, update Firebase counter to max number uploaded
+    Promise.all(promesas).then(function(){
+      if(maxNumSubido > 0){
+        // Update counter in Firebase using transaction
+        var contRef = db.collection("configuracion").doc("contador");
+        db.runTransaction(function(t){
+          return t.get(contRef).then(function(doc){
+            var currentN = doc.exists ? (doc.data().n||0) : 0;
+            var newN = Math.max(currentN, maxNumSubido);
+            t.set(contRef, {n:newN, ultimo7am:doc.exists?(doc.data().ultimo7am||0):0});
+            return newN;
+          });
+        }).then(function(newN){
+          localStorage.setItem('evr_contador', newN);
+          notif(subidos + " pedidos sincronizados - contador actualizado a #" + newN);
+        });
+      } else if(pendientes.length){
+        notif("Pedidos ya estaban sincronizados");
+      }
+    });
+
   }).catch(function(){
-    // Sin internet aun - devolver a la cola
     pendientes.forEach(function(r){ offlineQueue.push(r); });
     saveQueue();
+    notif("Sin internet - reintentando al reconectar");
   });
 }
 
 // Detectar cuando vuelve internet
 window.addEventListener('online', function(){
-  notif("Internet restaurado - sincronizando...");
-  setTimeout(syncQueue, 2000);
+  notif("Internet restaurado - sincronizando pedidos...");
+  // Sync immediately when internet returns
+  setTimeout(function(){
+    syncQueue();
+  }, 1000);
 });
 
 window.addEventListener('load', function(){
