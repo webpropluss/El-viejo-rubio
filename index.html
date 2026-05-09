@@ -422,61 +422,49 @@ function saveQueue(){
 
 function syncQueue(){
   if(!offlineQueue.length) return;
-  var pendientes = offlineQueue.slice();
-  offlineQueue = [];
-  saveQueue();
+  var pendientes = offlineQueue.slice(); // Copia - NO borrar todavia
 
-  db.collection("historial").orderBy("ts","desc").limit(50).get().then(function(snap){
-    var numsEnFirebase = [];
-    snap.forEach(function(doc){ numsEnFirebase.push(doc.data().num); });
-    
-    var subidos = 0;
-    var maxNumSubido = 0;
-    var promesas = [];
-    
-    pendientes.forEach(function(reg){
-      if(numsEnFirebase.indexOf(reg.num) === -1){
-        promesas.push(
-          db.collection("historial").add(reg).then(function(){
-            return db.collection("cola_cocina").add({
-              num:reg.num, fecha:reg.fecha, cliente:reg.cliente,
-              items:reg.items, total:reg.total, tipo:reg.tipo,
-              estado:"pendiente", timestamp:reg.ts
-            });
-          }).catch(function(){
-            offlineQueue.push(reg); saveQueue();
-          })
-        );
-        if(reg.num > maxNumSubido) maxNumSubido = reg.num;
-        subidos++;
-      }
+  var subidos = 0;
+  var maxNum = 0;
+  var promesas = [];
+
+  pendientes.forEach(function(reg){
+    var p = db.collection("historial").add(reg).then(function(){
+      // Subido exitosamente - remover de offlineQueue
+      offlineQueue = offlineQueue.filter(function(r){ return r.ts !== reg.ts; });
+      saveQueue();
+      // Agregar a cocina
+      db.collection("cola_cocina").add({
+        num:reg.num, fecha:reg.fecha, cliente:reg.cliente||"",
+        items:reg.items, total:reg.total, tipo:reg.tipo||"mesa",
+        estado:"pendiente", timestamp:reg.ts
+      }).catch(function(){});
+      subidos++;
+      if(reg.num > maxNum) maxNum = reg.num;
+    }).catch(function(err){
+      // Este pedido no se pudo subir - queda en offlineQueue
+      console.log("No se pudo subir pedido #"+reg.num, err);
     });
+    promesas.push(p);
+  });
 
-    // After all uploads, update Firebase counter to max number uploaded
-    Promise.all(promesas).then(function(){
-      if(maxNumSubido > 0){
-        // Update counter in Firebase using transaction
-        var contRef = db.collection("configuracion").doc("contador");
-        db.runTransaction(function(t){
-          return t.get(contRef).then(function(doc){
-            var currentN = doc.exists ? (doc.data().n||0) : 0;
-            var newN = Math.max(currentN, maxNumSubido);
-            t.set(contRef, {n:newN, ultimo7am:doc.exists?(doc.data().ultimo7am||0):0});
-            return newN;
-          });
-        }).then(function(newN){
-          localStorage.setItem('evr_contador', newN);
-          notif(subidos + " pedidos sincronizados - contador actualizado a #" + newN);
+  Promise.all(promesas).then(function(){
+    if(subidos > 0){
+      // Actualizar contador Firebase
+      db.runTransaction(function(t){
+        return t.get(db.collection("configuracion").doc("contador")).then(function(doc){
+          var currentN = doc.exists ? (doc.data().n||0) : 0;
+          var newN = Math.max(currentN, maxNum);
+          t.set(db.collection("configuracion").doc("contador"),{n:newN,ultimo7am:doc.exists?(doc.data().ultimo7am||0):0});
+          return newN;
         });
-      } else if(pendientes.length){
-        notif("Pedidos ya estaban sincronizados");
-      }
-    });
-
-  }).catch(function(){
-    pendientes.forEach(function(r){ offlineQueue.push(r); });
-    saveQueue();
-    notif("Sin internet - reintentando al reconectar");
+      }).then(function(newN){
+        localStorage.setItem('evr_contador', newN);
+        notif(subidos + " pedido(s) sincronizado(s) correctamente");
+        // Actualizar gestion si esta abierta
+        if(histCache.length) initGestion();
+      }).catch(function(){});
+    }
   });
 }
 
@@ -904,6 +892,8 @@ function cobrar(){
     if(b){b.disabled=true;b.style.background="#2D6A4F";b.style.color="#A7F3D0";b.innerHTML="Cobrado #"+num+" \u2713";}
     var ba=document.getElementById("btn-anular"); if(ba) ba.style.display="block";
     notif("Pedido #"+num+" cobrado - Bs."+total+" | Ahora imprime el ticket");
+    // Sincronizar cola offline pendiente despues de cobro exitoso
+    if(offlineQueue.length>0) setTimeout(syncQueue, 1000);
   }
 
   function guardarOffline(num){
@@ -918,16 +908,13 @@ function cobrar(){
     notif("Pedido #"+num+" guardado sin internet - se sincronizara al reconectar");
   }
 
-  // Sincronizar cola offline si hay pendientes
-  if(offlineQueue.length>0) syncQueue();
-
-  // Intentar Firebase con timeout de 5 segundos
+  // Intentar Firebase con timeout de 3 segundos
   var done=false;
   var timer=setTimeout(function(){
     if(done) return;
     done=true;
     guardarOffline(numLocal);
-  }, 5000);
+  }, 3000);
 
   var localCounter=parseInt(localStorage.getItem('evr_contador')||'0');
   db.runTransaction(function(t){
