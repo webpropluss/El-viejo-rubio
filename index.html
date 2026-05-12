@@ -182,6 +182,10 @@ tr:last-child td{border-bottom:none;}
 
       <div id="ped-list"><div class="ped-empty">Pedido vacío</div></div>
       <div class="total">Bs. <span id="total">0</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button id="btn-pago-efectivo" onclick="setPago('efectivo')" style="flex:1;padding:9px;background:#C8922A;border:none;border-radius:6px;color:#111;font-weight:bold;font-size:.85rem;cursor:pointer;">&#x1F4B5; Efectivo</button>
+        <button id="btn-pago-qr" onclick="setPago('qr')" style="flex:1;padding:9px;background:transparent;border:2px solid #444;border-radius:6px;color:#aaa;font-weight:bold;font-size:.85rem;cursor:pointer;">&#x1F4F1; QR</button>
+      </div>
       <button class="btn-g" id="btn-cobrar-main" onclick="cobrar()">✓ Cobrar</button>
       <button onclick="imprimirTicket()" id="btn-imprimir" style="width:100%;padding:11px;background:transparent;border:2px solid #C8922A;border-radius:6px;color:#C8922A;font-size:.95rem;font-weight:bold;cursor:pointer;margin-bottom:6px;">&#x1F5A8; Imprimir Ticket</button>
       <button id="btn-anular" onclick="anularCobro()" style="display:none;width:100%;padding:9px;background:rgba(231,76,60,.15);border:2px solid #e74c3c;border-radius:6px;color:#e74c3c;font-size:.85rem;font-weight:bold;cursor:pointer;margin-bottom:6px;">&#x21A9; Anular cobro</button>
@@ -251,6 +255,7 @@ tr:last-child td{border-bottom:none;}
     <div class="kpi"><div class="kpi-l">Ticket prom.</div><div class="kpi-v" id="kt">Bs. 0</div><div class="kpi-s">por pedido</div></div>
     <div class="kpi"><div class="kpi-l">Más vendido</div><div class="kpi-v" id="ktop" style="font-size:1rem;">--</div><div class="kpi-s" id="ktops">0 uds.</div></div>
   </div>
+  <div style="text-align:center;padding:8px;font-size:.85rem;" id="k-pago"></div>
   <button class="btn-admin" onclick="ir('pg-admin',initAdmin)">&#x2630; Administrar Menú</button>
   <div class="hist" style="overflow-x:auto;">
     <div class="hist-top">
@@ -265,7 +270,7 @@ tr:last-child td{border-bottom:none;}
         <button class="btn-pdf" onclick="expPDF()">PDF</button>
       </div>
     </div>
-    <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Prods</th><th>Total</th><th></th></tr></thead>
+    <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th>Prods</th><th>Total</th><th></th></tr></thead>
     <tbody id="htbody"></tbody></table>
     <div id="hempty" style="color:#555;text-align:center;padding:30px;font-size:.85rem;">Sin registros</div>
   </div>
@@ -534,6 +539,7 @@ var pinCache="";
 var catsCache=["Cafe","Te","Jugos","Algo Dulce","Para el Hambre","Desayuno"];
 var pedido=[], catAct="Todos", bus="", carIdx=0, carTimer=null;
 var tipoPedido="mesa";
+var pagoMetodo="efectivo";
 var cocinaActiva=true;
 var cocinaListener=null;
 var lastNumPedido=0;
@@ -856,7 +862,7 @@ function syncPed(){
   db.collection("pedido_actual").doc("actual").set({items:pedido,cliente:c,tipo:tipoPedido,ts:Date.now()});
 }
 function limpiar(){
-  pedido=[];tipoPedido="mesa";lastNumPedido=0;lastCobradoData=null;yaImpreso=false;
+  pedido=[];tipoPedido="mesa";pagoMetodo="efectivo";lastNumPedido=0;lastCobradoData=null;yaImpreso=false;
   var ci=document.getElementById("cli-inp");if(ci)ci.value="";
   setTipo("mesa");renderPed();syncPed();
   // Reset cobrar button
@@ -864,6 +870,7 @@ function limpiar(){
   if(btnC){btnC.disabled=false;btnC.style.background="";btnC.style.color="";btnC.innerHTML="\u2713 Cobrar";}
   var btnA=document.getElementById("btn-anular");
   if(btnA) btnA.style.display="none";
+  setPago("efectivo");
 }
 function cobrar(){
   if(!pedido.length){notif("El pedido esta vacio");return;}
@@ -884,7 +891,7 @@ function cobrar(){
 
   function guardarOnline(num){
     localStorage.setItem('evr_contador', num);
-    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now()};
+    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,pago:pagoMetodo,ts:Date.now()};
     db.collection("historial").add(reg).catch(function(){offlineQueue.push(reg);saveQueue();});
     db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
     lastNumPedido=num; lastCobradoData=reg; yaImpreso=false;
@@ -899,7 +906,7 @@ function cobrar(){
   function guardarOffline(num){
     while(offlineQueue.some(function(r){return r.num===num;})) num++;
     localStorage.setItem('evr_contador', num);
-    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,ts:Date.now(),offline:true};
+    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,pago:pagoMetodo,ts:Date.now(),offline:true};
     offlineQueue.push(reg); saveQueue();
     lastNumPedido=num; lastCobradoData=reg; yaImpreso=false;
     var b=document.getElementById("btn-cobrar-main");
@@ -1179,7 +1186,7 @@ function renderGestion(){
     bdel.textContent="X";
     (function(hh){bdel.onclick=function(){eliminarPedidoHist(hh);};})(h);
     t6.appendChild(bdel);
-    tr.appendChild(t1);tr.appendChild(t2);tr.appendChild(t3);tr.appendChild(t4);tr.appendChild(t5);tr.appendChild(t6);
+    tr.appendChild(t1);tr.appendChild(t2);tr.appendChild(t3);tr.appendChild(t3b);tr.appendChild(t4);tr.appendChild(t5);tr.appendChild(t6);
     tbody.appendChild(tr);
   });
 }
