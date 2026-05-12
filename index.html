@@ -1183,6 +1183,10 @@ function renderGestion(){
   document.getElementById("kt").textContent="Bs. "+tk;
   document.getElementById("ktop").textContent=topN;
   document.getElementById("ktops").textContent=topC+" uds.";
+  var qrCount=hist.filter(function(h){return h.pago==="qr";}).length;
+  var efCount=tv-qrCount;
+  var kqr=document.getElementById("k-qr"); if(kqr) kqr.textContent=qrCount;
+  var kef=document.getElementById("k-efectivo"); if(kef) kef.textContent=efCount;
   var tbody=document.getElementById("htbody"),empty=document.getElementById("hempty");
   tbody.innerHTML="";
   if(!hist.length){empty.style.display="block";return;}
