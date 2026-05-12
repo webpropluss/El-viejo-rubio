@@ -544,6 +544,20 @@ var cocinaActiva=true;
 var cocinaListener=null;
 var lastNumPedido=0;
 
+function setPago(m){
+  pagoMetodo = m;
+  var be = document.getElementById("btn-pago-efectivo");
+  var bq = document.getElementById("btn-pago-qr");
+  if(!be || !bq) return;
+  if(m === "qr"){
+    bq.style.background = "#C8922A"; bq.style.color = "#111"; bq.style.border = "none";
+    be.style.background = "transparent"; be.style.color = "#aaa"; be.style.border = "2px solid #444";
+  } else {
+    be.style.background = "#C8922A"; be.style.color = "#111"; be.style.border = "none";
+    bq.style.background = "transparent"; bq.style.color = "#aaa"; bq.style.border = "2px solid #444";
+  }
+}
+
 function setTipo(tipo){
   tipoPedido=tipo;
   var bm=document.getElementById("btn-mesa");
@@ -1178,6 +1192,8 @@ function renderGestion(){
     var t1=document.createElement("td");t1.style.color="#555";t1.textContent="#"+(h.num||"");
     var t2=document.createElement("td");t2.textContent=fd+" "+fh;
     var t3=document.createElement("td");t3.textContent=h.cliente||"\u2014";
+    var t3b=document.createElement("td");
+    t3b.innerHTML=h.pago==="qr"?"<span style='background:rgba(52,152,219,.2);color:#5DADE2;padding:2px 7px;border-radius:10px;font-size:.7rem;font-weight:bold;'>QR</span>":"<span style='background:rgba(200,146,42,.15);color:#C8922A;padding:2px 7px;border-radius:10px;font-size:.7rem;font-weight:bold;'>Efectivo</span>";
     var t4=document.createElement("td");var sp=document.createElement("span");sp.className="bp";sp.textContent=h.items.length+" prod.";t4.appendChild(sp);
     var t5=document.createElement("td");t5.className="mc";t5.textContent="Bs. "+h.total;
     var t6=document.createElement("td");
