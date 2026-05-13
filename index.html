@@ -256,8 +256,8 @@ tr:last-child td{border-bottom:none;}
     <div class="kpi"><div class="kpi-l">Más vendido</div><div class="kpi-v" id="ktop" style="font-size:1rem;">--</div><div class="kpi-s" id="ktops">0 uds.</div></div>
   </div>
   <div class="kpis" style="margin-top:8px;">
-    <div class="kpi"><div class="kpi-l">Efectivo</div><div class="kpi-v" id="k-efectivo" style="color:#C8922A;">0</div><div class="kpi-s">pedidos</div></div>
-    <div class="kpi"><div class="kpi-l">QR</div><div class="kpi-v" id="k-qr" style="color:#5DADE2;">0</div><div class="kpi-s">pedidos</div></div>
+    <div class="kpi"><div class="kpi-l">&#x1F4B5; Efectivo</div><div class="kpi-v" id="k-efectivo" style="color:#C8922A;">0</div><div class="kpi-s" id="k-efectivo-monto">Bs. 0</div></div>
+    <div class="kpi"><div class="kpi-l">&#x1F4F1; QR</div><div class="kpi-v" id="k-qr" style="color:#5DADE2;">0</div><div class="kpi-s" id="k-qr-monto">Bs. 0</div></div>
   </div>
   <button class="btn-admin" onclick="ir('pg-admin',initAdmin)">&#x2630; Administrar Menú</button>
   <div class="hist" style="overflow-x:auto;">
@@ -1186,10 +1186,16 @@ function renderGestion(){
   document.getElementById("kt").textContent="Bs. "+tk;
   document.getElementById("ktop").textContent=topN;
   document.getElementById("ktops").textContent=topC+" uds.";
-  var qrCount=hist.filter(function(h){return h.pago==="qr";}).length;
-  var efCount=tv-qrCount;
+  var qrPedidos=hist.filter(function(h){return h.pago==="qr";});
+  var efPedidos=hist.filter(function(h){return h.pago!=="qr";});
+  var qrCount=qrPedidos.length;
+  var efCount=efPedidos.length;
+  var qrMonto=0; qrPedidos.forEach(function(h){qrMonto+=h.total;});
+  var efMonto=0; efPedidos.forEach(function(h){efMonto+=h.total;});
   var kqr=document.getElementById("k-qr"); if(kqr) kqr.textContent=qrCount;
   var kef=document.getElementById("k-efectivo"); if(kef) kef.textContent=efCount;
+  var kqrm=document.getElementById("k-qr-monto"); if(kqrm) kqrm.textContent="Bs. "+qrMonto;
+  var kefm=document.getElementById("k-efectivo-monto"); if(kefm) kefm.textContent="Bs. "+efMonto;
   var tbody=document.getElementById("htbody"),empty=document.getElementById("hempty");
   tbody.innerHTML="";
   if(!hist.length){empty.style.display="block";return;}
