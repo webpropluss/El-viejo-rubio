@@ -902,8 +902,8 @@ function cobrar(){
   var total=0; pedido.forEach(function(i){total+=i.p*i.cant;});
   var cli=document.getElementById("cli-inp"); var c=cli?cli.value:"Sin nombre";
   var ahora=new Date();
-  var hoy7am=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate(),7,0,0).getTime();
-  if(ahora.getHours()<7) hoy7am-=24*60*60*1000;
+  var hoyStr=ahora.getFullYear()+"-"+(ahora.getMonth()+1)+"-"+ahora.getDate();
+  var hoy7am=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate(),7,0,0,0).getTime();
   var numLocal=parseInt(localStorage.getItem('evr_contador')||'0')+1;
 
   function guardarOnline(num){
@@ -946,8 +946,11 @@ function cobrar(){
       var u7=doc.exists?(doc.data().ultimo7am||0):0;
       var n=doc.exists?(doc.data().n||0):0;
       var baseN=Math.max(n,localCounter);
-      var num=(u7<hoy7am)?1:baseN+1;
-      t.set(db.collection("configuracion").doc("contador"),{n:num,ultimo7am:(u7<hoy7am)?hoy7am:u7});
+      var ultimaFecha=u7>0?new Date(u7):null;
+      var ultimoStr=ultimaFecha?(ultimaFecha.getFullYear()+"-"+(ultimaFecha.getMonth()+1)+"-"+ultimaFecha.getDate()):"";
+      var resetear=(ultimoStr!==hoyStr);
+      var num=resetear?1:baseN+1;
+      t.set(db.collection("configuracion").doc("contador"),{n:num,ultimo7am:resetear?hoy7am:u7,ultimaFecha:hoyStr});
       return num;
     });
   }).then(function(num){
