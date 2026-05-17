@@ -924,6 +924,8 @@ function cobrar(){
     while(offlineQueue.some(function(r){return r.num===num;})) num++;
     localStorage.setItem('evr_contador', num);
     var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,pago:pagoMetodo,ts:Date.now(),offline:true};
+    // Also save today's date for counter reset
+    try{localStorage.setItem('evr_fecha',hoyStr);}catch(ex){}
     offlineQueue.push(reg); saveQueue();
     lastNumPedido=num; lastCobradoData=reg; yaImpreso=false;
     var b=document.getElementById("btn-cobrar-main");
@@ -943,14 +945,15 @@ function cobrar(){
   var localCounter=parseInt(localStorage.getItem('evr_contador')||'0');
   db.runTransaction(function(t){
     return t.get(db.collection("configuracion").doc("contador")).then(function(doc){
-      var u7=doc.exists?(doc.data().ultimo7am||0):0;
+      // Usar fecha del ultimo pedido real en Firebase como referencia
+      var ultimaFechaStr=doc.exists?(doc.data().ultimaFecha||""):"";
       var n=doc.exists?(doc.data().n||0):0;
       var baseN=Math.max(n,localCounter);
-      var ultimaFecha=u7>0?new Date(u7):null;
-      var ultimoStr=ultimaFecha?(ultimaFecha.getFullYear()+"-"+(ultimaFecha.getMonth()+1)+"-"+ultimaFecha.getDate()):"";
-      var resetear=(ultimoStr!==hoyStr);
+      // Resetear si la fecha guadada es diferente a hoy
+      var resetear=(ultimaFechaStr!=="" && ultimaFechaStr!==hoyStr);
       var num=resetear?1:baseN+1;
-      t.set(db.collection("configuracion").doc("contador"),{n:num,ultimo7am:resetear?hoy7am:u7,ultimaFecha:hoyStr});
+      // Guardar fecha de HOY como referencia para el proximo pedido
+      t.set(db.collection("configuracion").doc("contador"),{n:num,ultimaFecha:hoyStr,ultimo7am:Date.now()});
       return num;
     });
   }).then(function(num){
