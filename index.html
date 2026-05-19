@@ -936,29 +936,22 @@ function cobrar(){
   }
 
   // Intentar Firebase con timeout de 3 segundos
-  var done=false;
-  var timer=setTimeout(function(){
-    if(done) return;
-    done=true;
+  // Sin timer - decidir inmediatamente segun conexion
+  if(!navigator.onLine){
     guardarOffline(numLocal);
-  }, 3000);
-
-  var localCounter=parseInt(localStorage.getItem('evr_contador')||'0');
+    return;
+  }
+  // CON INTERNET: transaccion atomica Firebase - UNA SOLA EJECUCION
   db.runTransaction(function(t){
     return t.get(db.collection("configuracion").doc("contador")).then(function(doc){
-      // Reiniciar si es un dia nuevo (ultimaFecha diferente a hoy o vacia)
       var ultimaFechaStr=doc.exists?(doc.data().ultimaFecha||""):"";
       var n=doc.exists?(doc.data().n||0):0;
-      // SOLO Firebase, sin localCounter
-      var resetear=(ultimaFechaStr!==hoyStr); // vacia O diferente = reiniciar
+      var resetear=(ultimaFechaStr!==hoyStr);
       var num=resetear?1:n+1;
       t.set(db.collection("configuracion").doc("contador"),{n:num,ultimaFecha:hoyStr,ultimo7am:Date.now()});
       return num;
     });
   }).then(function(num){
-    if(done) return;
-    done=true;
-    clearTimeout(timer);
     guardarOnline(num);
   }).catch(function(){
     if(done) return;
