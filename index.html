@@ -467,7 +467,7 @@ function syncQueue(){
           return newN;
         });
       }).then(function(newN){
-        localStorage.removeItem('evr_contador_offline'); // Limpiar contador offline
+        localStorage.setItem('evr_last_firebase_n', newN); // Actualizar ultimo N conocido
         notif(subidos + " pedido(s) sincronizado(s) correctamente");
         // Actualizar gestion si esta abierta
         if(histCache.length) initGestion();
@@ -891,6 +891,8 @@ function limpiar(){
 }
 function cobrar(){
   if(!pedido.length){notif("El pedido esta vacio");return;}
+
+  // Bloquear boton inmediatamente - UN SOLO CLICK
   var btnC=document.getElementById("btn-cobrar-main");
   if(btnC){
     if(btnC.disabled) return;
@@ -899,49 +901,47 @@ function cobrar(){
     btnC.style.color="#aaa";
     btnC.innerHTML="Procesando...";
   }
+
   var total=0; pedido.forEach(function(i){total+=i.p*i.cant;});
-  var cli=document.getElementById("cli-inp"); var c=cli?cli.value:"Sin nombre";
+  var cli=document.getElementById("cli-inp");
+  var c=cli?cli.value.trim():"";
   var ahora=new Date();
   var hoyStr=ahora.getFullYear()+"-"+(ahora.getMonth()+1)+"-"+ahora.getDate();
-  var hoy7am=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate(),7,0,0,0).getTime();
-  var numLocal=parseInt(localStorage.getItem('evr_contador_offline')||'0')+1;
+
+  function mostrarCobrado(num){
+    lastNumPedido=num; lastCobradoData={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,pago:pagoMetodo,ts:Date.now()};
+    yaImpreso=false;
+    var b=document.getElementById("btn-cobrar-main");
+    if(b){b.disabled=true;b.style.background="#2D6A4F";b.style.color="#A7F3D0";b.innerHTML="Cobrado #"+num+" \u2713";}
+    var ba=document.getElementById("btn-anular"); if(ba) ba.style.display="block";
+  }
 
   function guardarOnline(num){
-    // No guardar contador en localStorage - Firebase es la fuente unica
     var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,pago:pagoMetodo,ts:Date.now()};
+    lastCobradoData=reg;
     db.collection("historial").add(reg).catch(function(){offlineQueue.push(reg);saveQueue();});
-    db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()});
-    lastNumPedido=num; lastCobradoData=reg; yaImpreso=false;
-    var b=document.getElementById("btn-cobrar-main");
-    if(b){b.disabled=true;b.style.background="#2D6A4F";b.style.color="#A7F3D0";b.innerHTML="Cobrado #"+num+" \u2713";}
-    var ba=document.getElementById("btn-anular"); if(ba) ba.style.display="block";
-    notif("Pedido #"+num+" cobrado - Bs."+total+" | Ahora imprime el ticket");
-    // Sincronizar cola offline pendiente despues de cobro exitoso
-    if(offlineQueue.length>0) setTimeout(syncQueue, 1000);
+    db.collection("cola_cocina").add({num:num,fecha:reg.fecha,cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,estado:"pendiente",timestamp:Date.now()}).catch(function(){});
+    // Guardar ultimo numero Firebase para uso offline
+    localStorage.setItem('evr_last_firebase_n', num);
+    mostrarCobrado(num);
+    notif("Pedido #"+num+" cobrado - Bs."+total+" | Imprime el ticket");
+    if(offlineQueue.length>0) setTimeout(syncQueue,1000);
   }
 
-  function guardarOffline(num){
-    while(offlineQueue.some(function(r){return r.num===num;})) num++;
-    // Solo guardar en localStorage cuando estamos offline
-    localStorage.setItem('evr_contador_offline', num);
-    var reg={num:num,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,pago:pagoMetodo,ts:Date.now(),offline:true};
-    // Also save today's date for counter reset
-    try{localStorage.setItem('evr_fecha',hoyStr);}catch(ex){}
+  function guardarOffline(){
+    // Usar el ultimo numero conocido de Firebase como base
+    var lastN=parseInt(localStorage.getItem('evr_last_firebase_n')||'0');
+    var numOff=lastN+1;
+    while(offlineQueue.some(function(r){return r.num===numOff;})) numOff++;
+    localStorage.setItem('evr_last_firebase_n', numOff);
+    var reg={num:numOff,fecha:new Date().toISOString(),cliente:c,items:pedido.slice(),total:total,tipo:tipoPedido,pago:pagoMetodo,ts:Date.now(),offline:true};
     offlineQueue.push(reg); saveQueue();
-    lastNumPedido=num; lastCobradoData=reg; yaImpreso=false;
-    var b=document.getElementById("btn-cobrar-main");
-    if(b){b.disabled=true;b.style.background="#2D6A4F";b.style.color="#A7F3D0";b.innerHTML="Cobrado #"+num+" \u2713";}
-    var ba=document.getElementById("btn-anular"); if(ba) ba.style.display="block";
-    notif("Pedido #"+num+" guardado sin internet - se sincronizara al reconectar");
+    lastCobradoData=reg;
+    mostrarCobrado(numOff);
+    notif("Pedido #"+numOff+" guardado sin internet - se sincronizara al reconectar");
   }
 
-  // Intentar Firebase con timeout de 3 segundos
-  // Sin timer - decidir inmediatamente segun conexion
-  if(!navigator.onLine){
-    guardarOffline(numLocal);
-    return;
-  }
-  // CON INTERNET: transaccion atomica Firebase - UNA SOLA EJECUCION
+  // Intentar Firebase - con catch inmediato si falla
   db.runTransaction(function(t){
     return t.get(db.collection("configuracion").doc("contador")).then(function(doc){
       var ultimaFechaStr=doc.exists?(doc.data().ultimaFecha||""):"";
@@ -953,15 +953,12 @@ function cobrar(){
     });
   }).then(function(num){
     guardarOnline(num);
-  }).catch(function(){
-    if(done) return;
-    done=true;
-    clearTimeout(timer);
-    guardarOffline(numLocal);
+  }).catch(function(err){
+    // Firebase fallo - guardar offline
+    guardarOffline();
   });
 }
 
-// CLIENTE
 function initCliente(){
   startCar();
   db.collection("pedido_actual").doc("actual").onSnapshot(function(doc){
